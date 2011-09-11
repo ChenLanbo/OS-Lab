@@ -123,7 +123,15 @@ boot_alloc(uint32_t n, uint32_t align)
 	//	Step 3: increase boot_freemem to record allocation
 	//	Step 4: return allocated chunk
 
-	return NULL;
+	//
+	cprintf("******** boot alloc debug -- boot_freemem: %x *********\n", (uint32_t)boot_freemem);
+	//
+
+	boot_freemem = ROUNDUP(boot_freemem, align);
+	v = (void *)boot_freemem;
+	boot_freemem = boot_freemem + n;
+
+	return v;
 }
 
 // Set up a two-level page table:
@@ -146,7 +154,7 @@ i386_vm_init(void)
 	size_t n;
 
 	// Delete this line:
-	panic("i386_vm_init: This function is not finished\n");
+	//panic("i386_vm_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -154,6 +162,16 @@ i386_vm_init(void)
 	memset(pgdir, 0, PGSIZE);
 	boot_pgdir = pgdir;
 	boot_cr3 = PADDR(pgdir);
+
+	//Debug info
+	/*
+	cprintf("Number of pages: %u\n", npage);
+	cprintf("Size of struct Page: %u\n", sizeof(struct Page));
+	cprintf("boot_pgdir: %x\n", (uint32_t)boot_pgdir);
+	cprintf("boot_cr3: %x\n", (uint32_t)boot_cr3);
+	cprintf("PDX(VPT): %x\n", (uint32_t)PDX(VPT));
+	cprintf("PDX(UVPT): %x\n", (uint32_t)PDX(UVPT));
+	*/
 
 	//////////////////////////////////////////////////////////////////////
 	// Recursively insert PD in itself as a page table, to form
@@ -176,6 +194,10 @@ i386_vm_init(void)
 	// User-level programs will get read-only access to the array as well.
 	// Your code goes here:
 
+	pages = (struct Page *)boot_alloc(npage * sizeof(struct Page), PGSIZE);
+	//debug info
+	cprintf("pages addr: %x\n", (uint32_t)pages);
+
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -183,6 +205,9 @@ i386_vm_init(void)
 	// memory management will go through the page_* functions. In
 	// particular, we can now map memory using boot_map_segment or page_insert
 	page_init();
+
+	// Delete this line:
+	// panic("i386_vm_init: This function is not finished\n");
 
 	check_page_alloc();
 
@@ -283,12 +308,17 @@ check_page_alloc()
 	struct Page *pp, *pp0, *pp1, *pp2;
 	struct Page_list fl;
 
+	//Debug
+	cprintf("IN check_page_alloc 1\n");
+
+
 	// if there's a page that shouldn't be on
 	// the free list, try to make sure it
 	// eventually causes trouble.
 	LIST_FOREACH(pp0, &page_free_list, pp_link)
 		memset(page2kva(pp0), 0x97, 128);
 
+	cprintf("IN check_page_alloc 2\n");
 	LIST_FOREACH(pp0, &page_free_list, pp_link) {
 		// check that we didn't corrupt the free list itself
 		assert(pp0 >= pages);
@@ -449,10 +479,49 @@ page_init(void)
 	// Change the code to reflect this.
 	int i;
 	LIST_INIT(&page_free_list);
-	for (i = 0; i < npage; i++) {
+
+	pages[0].pp_ref = 1;
+	//LIST_INSERT_HEAD(&page_free_list,  &pages[0], pp_link);
+
+	//debug info
+	cprintf("page_init debug: %u %u %u\n", basemem/PGSIZE, IOPHYSMEM/PGSIZE, EXTPHYSMEM/PGSIZE);
+	cprintf("page_init debug: %d\n", npage);
+
+	for (i = 1; i < basemem / PGSIZE; i++){
 		pages[i].pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
 	}
+
+	for (i = IOPHYSMEM / PGSIZE; i < EXTPHYSMEM / PGSIZE; i++){
+		pages[i].pp_ref = 1;
+		//LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+	}
+
+	for (i = EXTPHYSMEM / PGSIZE; i < npage; i++){
+		if ((uint32_t)page2kva(&pages[i]) >= (uint32_t)KERNBASE)
+		{
+			pages[i].pp_ref = 1;
+		}
+		else
+		{
+			pages[i].pp_ref = 0;
+			LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+		}
+	}
+
+	/* Debug info
+	struct Page *pp0;
+	LIST_FOREACH(pp0, &page_free_list, pp_link)
+	{
+		//cprintf("page number: %u\n", page2ppn(pp0));
+		//page2kva(pp0);
+		//memset(page2kva(pp0), 0x97, 128);
+	}
+	*/
+	/*for (i = 0; i < npage; i++) {
+	  pages[i].pp_ref = 0;
+	  LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+	  }*/
 }
 
 //
@@ -484,7 +553,18 @@ int
 page_alloc(struct Page **pp_store)
 {
 	// Fill this function in
-	return -E_NO_MEM;
+	if (LIST_EMPTY(&page_free_list))
+	{
+		return -E_NO_MEM;
+	}
+	else
+	{
+		*pp_store = LIST_FIRST(&page_free_list);
+		LIST_REMOVE(LIST_FIRST(&page_free_list), pp_link);
+		page_initpp(*pp_store);
+
+		return 0;
+	}
 }
 
 //
@@ -495,6 +575,7 @@ void
 page_free(struct Page *pp)
 {
 	// Fill this function in
+	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
 }
 
 //
