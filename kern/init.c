@@ -30,9 +30,16 @@ i386_init(void)
 	i386_detect_memory();
 	i386_vm_init();
 
+	// debug info
+	// cprintf("VM steup succeed\n");
+
 	// Drop into the kernel monitor.
 	while (1)
+	{
+		// debug info
+		// cprintf("VM steup succeed\n");
 		monitor(NULL);
+	}
 }
 
 
