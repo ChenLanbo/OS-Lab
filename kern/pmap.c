@@ -748,6 +748,18 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 	pte_t *entry;
 	uint32_t i;
 
+	// If PTE_PS bit is set
+	/*
+	if (perm & PTE_PS)
+	{
+		for (i = 0; i < size; i += PGSIZE * 1024)
+		{
+			entry = &pgdir[PDX(la + i)];
+			*entry = (pa + i) | perm | PTE_P;
+		}
+	}
+	*/
+
 	for (i = 0; i < size; i += PGSIZE)
 	{
 		entry = pgdir_walk(pgdir, (void *)(la + i), 1);
@@ -761,6 +773,7 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 		*entry = (pa + i) | perm | PTE_P;
 	} 
 	// Fill this function in
+
 }
 
 //
