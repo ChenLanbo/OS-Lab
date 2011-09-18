@@ -127,11 +127,13 @@ boot_alloc(uint32_t n, uint32_t align)
 	// so we ROUNDUP
 	boot_freemem = ROUNDUP(boot_freemem, align);
 
-	//debug info cprintf("***** boot alloc debug -- before alloc boot_freemem: %x ******\n", (uint32_t)boot_freemem); 
+	// debug info 
+	// cprintf("***** boot alloc debug -- before alloc boot_freemem: %x ******\n", (uint32_t)boot_freemem); 
 	v = (void *)boot_freemem;
 	boot_freemem = boot_freemem + n;
 
-	//debug info cprintf("----- boot alloc debug -- after alloc boot_freemem: %x ------\n", (uint32_t)boot_freemem);
+	// debug info 
+	// cprintf("----- boot alloc debug -- after alloc boot_freemem: %x ------\n", (uint32_t)boot_freemem);
 	return v;
 }
 
@@ -151,7 +153,7 @@ void
 i386_vm_init(void)
 {
 	pde_t* pgdir;
-	uint32_t cr0;
+	uint32_t cr0, cr4;
 	size_t n;
 
 	// Delete this line:
@@ -163,10 +165,6 @@ i386_vm_init(void)
 	memset(pgdir, 0, PGSIZE);
 	boot_pgdir = pgdir;
 	boot_cr3 = PADDR(pgdir);
-
-	// Debug info
-	// cprintf("Debug info\n");
-	// cprintf("sizeof(Page): %u\n", sizeof(struct Page));
 
 	//////////////////////////////////////////////////////////////////////
 	// Recursively insert PD in itself as a page table, to form
@@ -255,8 +253,8 @@ i386_vm_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
-	// boot_map_segment(pgdir, KERNBASE, 0x10000000, 0, PTE_W | PTE_PS);
-	boot_map_segment(pgdir, KERNBASE, 0x10000000, 0, PTE_W);
+	// Space efficient
+	boot_map_segment(pgdir, KERNBASE, 0x10000000, 0, PTE_W | PTE_PS);
 
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
@@ -277,13 +275,23 @@ i386_vm_init(void)
 
 	// Map VA 0:4MB same as VA KERNBASE, i.e. to PA 0:4MB.
 	// (Limits our kernel to <4MB)
-	pgdir[0] = pgdir[PDX(KERNBASE)];
+	// pgdir[0] = pgdir[PDX(KERNBASE)];
+
+	// Modify
+	uint32_t i, j = 0;
+	for (i = 0; i < 0x10000000; i += PGSIZE * 1024){
+		j++;
+		pgdir[PDX(i)] = pgdir[PDX(KERNBASE + i)];
+	}
 
 	// Install page table.
 	lcr3(boot_cr3);
 
 	// debug info
-	cprintf("Loading page table done\n");
+	// Set the CR4_PSE of cr4 registers to enable 4MB physical page
+	cr4 = rcr4();
+	cr4 |= CR4_PSE;
+	lcr4(cr4);
 
 	// Turn on paging.
 	cr0 = rcr0();
@@ -292,7 +300,7 @@ i386_vm_init(void)
 	lcr0(cr0);
 
 	// debug info
-	cprintf("Turn on paging\n");
+	// cprintf("Turn on paging\n");
 
 	// Current mapping: KERNBASE+x => x => x.
 	// (x < 4MB so uses paging pgdir[0])
@@ -311,7 +319,10 @@ i386_vm_init(void)
 
 	// This mapping was only used after paging was turned on but
 	// before the segment registers were reloaded.
-	pgdir[0] = 0;
+	// pgdir[0] = 0;
+	for (i = 0; i < 0x10000000; i += PGSIZE * 1024){
+		pgdir[PDX(i)] = 0;
+	}
 
 	// Flush the TLB for good measure, to kill the pgdir[0] mapping.
 	lcr3(boot_cr3);
@@ -761,8 +772,8 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 
 	// If PTE_PS bit is set
 	if (perm & PTE_PS){
+		// cprintf("PTE_PS ON\n");
 		for (i = 0; i < size; i += PGSIZE * 1024){
-			//cprintf("%u %x %u\n", i, i, i / (1<<20));
 			entry = &pgdir[PDX(la + i)];
 			*entry = (physaddr_t)(pa + i) | perm | PTE_P;
 		}
