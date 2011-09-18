@@ -209,9 +209,6 @@ i386_vm_init(void)
 	page_check();
 
 
-	// Delete this line:
-	// panic("i386_vm_init: This function is not finished\n");
-
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory 
 	
@@ -258,6 +255,7 @@ i386_vm_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
+	// boot_map_segment(pgdir, KERNBASE, 0x10000000, 0, PTE_W | PTE_PS);
 	boot_map_segment(pgdir, KERNBASE, 0x10000000, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
@@ -285,13 +283,16 @@ i386_vm_init(void)
 	lcr3(boot_cr3);
 
 	// debug info
-	// cprintf("Loading page table done\n");
+	cprintf("Loading page table done\n");
 
 	// Turn on paging.
 	cr0 = rcr0();
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_TS|CR0_EM|CR0_MP;
 	cr0 &= ~(CR0_TS|CR0_EM);
 	lcr0(cr0);
+
+	// debug info
+	cprintf("Turn on paging\n");
 
 	// Current mapping: KERNBASE+x => x => x.
 	// (x < 4MB so uses paging pgdir[0])
@@ -466,6 +467,12 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P))
 		return ~0;
+
+	// Fit to PTE_PS bit
+	if (*pgdir & PTE_PS){
+		return (*pgdir & (~0x3FFFFF)) | (va & 0x3FFFFF);
+	}
+
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
@@ -655,8 +662,9 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			{
 				// debug info 
 				// cprintf("Create a page table\n");
-				pp->pp_ref = 1;
+				// memset((void *)page2pa(pp), 0, PGSIZE);
 				memset(page2kva(pp), 0, PGSIZE);
+				pp->pp_ref = 1;
 
 				// *pgdir = page2pa(pp) | PTE_W | PTE_P;
 				// !!!!! must add PTE_W option
@@ -664,6 +672,10 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			}
 		}
 	}
+	/*if (*pgdir & PTE_PS)
+	{
+		return (pte_t *)pgdir;
+	}*/
 	entry = (pte_t *)KADDR(PTE_ADDR(*pgdir));
 	return &entry[PTX(va)];
 }
@@ -710,11 +722,10 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 		if (PTE_ADDR(*entry) == page2pa(pp))
 		{
 			// debug info 
-			// cprintf("Already mapped\n");
 			// !!!!!! change the page directory entry permission
 			pgdir[PDX(va)] |= perm;
-
 			*entry = (page2pa(pp) | perm | PTE_P);
+
 			tlb_invalidate(pgdir, va);
 			return 0;
 		}
@@ -724,8 +735,8 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 		}
 	}
 
-	*entry = (page2pa(pp) | perm | PTE_P);
 	pgdir[PDX(va)] |= perm;
+	*entry = (page2pa(pp) | perm | PTE_P);
 	pp->pp_ref = pp->pp_ref + 1;
 
 	tlb_invalidate(pgdir, va);
@@ -749,12 +760,11 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 	uint32_t i;
 
 	// If PTE_PS bit is set
-	if (perm & PTE_PS)
-	{
-		for (i = 0; i < size; i += PGSIZE * 1024)
-		{
+	if (perm & PTE_PS){
+		for (i = 0; i < size; i += PGSIZE * 1024){
+			//cprintf("%u %x %u\n", i, i, i / (1<<20));
 			entry = &pgdir[PDX(la + i)];
-			*entry = (pa + i) | perm | PTE_P;
+			*entry = (physaddr_t)(pa + i) | perm | PTE_P;
 		}
 		return ;
 	}
@@ -767,12 +777,10 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 		{
 			panic("no memory\n");
 		}
-
 		// set the physical address and permissions
 		*entry = (pa + i) | perm | PTE_P;
 	} 
 	// Fill this function in
-
 }
 
 //
