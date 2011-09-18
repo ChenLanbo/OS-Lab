@@ -683,10 +683,10 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			}
 		}
 	}
-	/*if (*pgdir & PTE_PS)
+	if (*pgdir & PTE_PS)
 	{
 		return (pte_t *)pgdir;
-	}*/
+	}
 	entry = (pte_t *)KADDR(PTE_ADDR(*pgdir));
 	return &entry[PTX(va)];
 }
