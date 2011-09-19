@@ -543,14 +543,11 @@ page_init(void)
 	// [EXPHYMEM, ...) some are used
 	for (i = EXTPHYSMEM / PGSIZE, j = 0; i < npage; i++, j++){
 		//kernel uses some pages
-		if (j < ((uint32_t)ROUNDUP(boot_freemem, PGSIZE) - KERNBASE) / PGSIZE)
-		{
+		if (j < ((uint32_t)ROUNDUP(boot_freemem, PGSIZE) - KERNBASE) / PGSIZE){
 			// debug info 
 			// cprintf("Physical page %u not in use\n", i);
 			pages[i].pp_ref = 1;
-		}
-		else
-		{
+		} else {
 			pages[i].pp_ref = 0;
 			LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
 		}
@@ -592,12 +589,9 @@ int
 page_alloc(struct Page **pp_store)
 {
 	// Fill this function in
-	if (LIST_EMPTY(&page_free_list))
-	{
+	if (LIST_EMPTY(&page_free_list)){
 		return -E_NO_MEM;
-	}
-	else
-	{
+	} else {
 		*pp_store = LIST_FIRST(&page_free_list);
 		LIST_REMOVE(LIST_FIRST(&page_free_list), pp_link);
 		page_initpp(*pp_store);
@@ -657,20 +651,13 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 
 	// get the page directory entry
 	pgdir = &pgdir[PDX(va)];
-	if (!(*pgdir & PTE_P))
-	{
-		if (create == 0)
-		{
+	if (!(*pgdir & PTE_P)) {
+		if (create == 0) {
 			return NULL;
-		}
-		else
-		{
-			if (page_alloc(&pp) != 0)
-			{
+		} else {
+			if (page_alloc(&pp) != 0) {
 				return NULL;
-			}
-			else
-			{
+			} else {
 				// debug info 
 				// cprintf("Create a page table\n");
 				// memset((void *)page2pa(pp), 0, PGSIZE);
@@ -683,8 +670,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			}
 		}
 	}
-	if (*pgdir & PTE_PS)
-	{
+	if (*pgdir & PTE_PS) {
 		return (pte_t *)pgdir;
 	}
 	entry = (pte_t *)KADDR(PTE_ADDR(*pgdir));
@@ -723,15 +709,12 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 	if (pp == NULL) return -E_NO_MEM;
 
 	entry = pgdir_walk(pgdir, va, 1);
-	if (entry == NULL)
-	{
+	if (entry == NULL) {
 		return -E_NO_MEM;
 	}
 
-	if ((*entry & PTE_P))
-	{
-		if (PTE_ADDR(*entry) == page2pa(pp))
-		{
+	if ((*entry & PTE_P)) {
+		if (PTE_ADDR(*entry) == page2pa(pp)) {
 			// debug info 
 			// !!!!!! change the page directory entry permission
 			pgdir[PDX(va)] |= perm;
@@ -739,9 +722,7 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 
 			tlb_invalidate(pgdir, va);
 			return 0;
-		}
-		else
-		{
+		} else {
 			page_remove(pgdir, va);
 		}
 	}
@@ -780,12 +761,10 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 		return ;
 	}
 
-	for (i = 0; i < size; i += PGSIZE)
-	{
+	for (i = 0; i < size; i += PGSIZE) {
 		entry = pgdir_walk(pgdir, (void *)(la + i), 1);
 		// debug info
-		if (entry == NULL)
-		{
+		if (entry == NULL) {
 			panic("no memory\n");
 		}
 		// set the physical address and permissions
@@ -811,8 +790,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	// Fill this function in
 	pte_t *entry;
 	entry = pgdir_walk(pgdir, va, 0);
-	if (entry == NULL)
-	{
+	if (entry == NULL) {
 		return NULL;
 	}
 	*pte_store = entry;
@@ -844,8 +822,7 @@ page_remove(pde_t *pgdir, void *va)
 	// debug info 
 	// cprintf("Page remove\n");
 	pp = page_lookup(pgdir, va, &entry);
-	if (pp == NULL)
-	{
+	if (pp == NULL) {
 		return ;
 	}
 
