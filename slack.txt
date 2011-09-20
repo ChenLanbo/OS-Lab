@@ -27,10 +27,23 @@ Challenge 1: space-efficient Kernel mapping using PTE_PS
 
 Challenge 2: add showmappings
 
+	I add two new files which are memutil.h and memutil.c to define memory mangement functio-
+	ns.
 
+	showmappings: show the physical mappings of given virtual addresses
+		Usage: showmappings [virtual address]
+		Output: no mapping if the virtual address is not mapped into physical page
+				physical page address and permissions if mapped
+
+		Use pgdir_walk in pmap.c
 
 Challenge 3:
 
 Challenge 4:
 
 Challenge 5: add alloc_page, page_status, free_page commands
+
+	These tree files are defined in memutil.c
+
+	alloc_page: alloc a page of 4KB
+		Usage: alloc_page
