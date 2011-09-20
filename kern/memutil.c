@@ -1,4 +1,3 @@
-
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/memlayout.h>
@@ -9,71 +8,184 @@
 #include <kern/pmap.h>
 #include <inc/string.h>
 
+// char string of hex format
+int atoh(char *str, uint32_t *res);
+// char string of decimal format
+int atoi(char *str, uint32_t *res);
 
 int 
 mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 {
 	int i, j;
 	uint32_t va, len;
-	// for (i = 0; i < argc; i++){ cprintf("%s ", argv[i]); } cprintf("\n");
 
 	if (argc == 1){
-		cprintf("Usage: showmappings <virtual address>\n       virtual address must be hexdecimal\n");
+		cprintf("Usage: showmappings [virtual address]\n");
 		return 1;
 	}
 
 	for (i = 1; i < argc; i++){
-		va = 0;
-		len = strlen(argv[i]);
-		if (len > 2 && argv[i][0] == '0' && (argv[i][1] == 'x' || argv[i][1] == 'X')){
-			if (len > 10){
-				cprintf("1Address out of range: %s\n", argv[i]);
-				continue;
-			}
-			for (j = 2; j < len; j++){
-				if (('0' <= argv[i][j] && argv[i][j] <= '9') 
-				 || ('a' <= argv[i][j] && argv[i][j] <= 'f')
-				 || ('A' <= argv[i][j] && argv[i][j] <= 'F')){
-					continue;
-				}
-				break;
-			}
-			if (j < len){
-				cprintf("2Error address format: %s\n", argv[i]);
-				continue;
-			}
-
-			for (j = 2; j < len; j++){
-				if ('0' <= argv[i][j] && argv[i][j] <= '9') va = va * 16 + (argv[i][j] - '0');
-				if ('a' <= argv[i][j] && argv[i][j] <= 'f') va = va * 16 + (argv[i][j] - 'a' + 10);
-				if ('A' <= argv[i][j] && argv[i][j] <= 'F') va = va * 16 + (argv[i][j] - 'A' + 10);
-			}
-
-			pte_t *entry = pgdir_walk(boot_pgdir, (void *)va, 0);
-			if (entry == NULL){
-				cprintf("%08x: currently has no mapping\n", va);
-				continue;
-			}
-			cprintf("0x%08x: mapped to physical page at address 0x%08x\n", va, PTE_ADDR(*entry));
-			cprintf("     Flags:");
-			if (*entry & PTE_W) cprintf(" PTE_W");
-			if (*entry & PTE_U) cprintf(" PTE_U");
-			if (*entry & PTE_PWT) cprintf(" PTE_PWT");
-			if (*entry & PTE_PCD) cprintf(" PTE_PCD");
-			if (*entry & PTE_A) cprintf(" PTE_A");
-			if (*entry & PTE_D) cprintf(" PTE_D");
-			if (*entry & PTE_PS) cprintf(" PTE_PS");
-			if (*entry & PTE_MBZ) cprintf(" PTE_MBZ");
-			cprintf("\n\n");
-		} else {
+		if (atoh(argv[i], &va) == 1 && atoi(argv[i], &va) == 1){
 			cprintf("Error address format: %s\n", argv[i]);
+			continue;
 		}
+		pte_t *entry = pgdir_walk(boot_pgdir, (void *)va, 0);
+		if (entry == NULL){
+			cprintf("%08x: currently has no mapping\n", va);
+			continue;
+		}
+		cprintf("0x%08x: mapped to physical page at address 0x%08x\n", va, PTE_ADDR(*entry));
+		cprintf("     Flags:");
+		if (*entry & PTE_W) cprintf(" PTE_W");
+		if (*entry & PTE_U) cprintf(" PTE_U");
+		if (*entry & PTE_PWT) cprintf(" PTE_PWT");
+		if (*entry & PTE_PCD) cprintf(" PTE_PCD");
+		if (*entry & PTE_A) cprintf(" PTE_A");
+		if (*entry & PTE_D) cprintf(" PTE_D");
+		if (*entry & PTE_PS) cprintf(" PTE_PS");
+		if (*entry & PTE_MBZ) cprintf(" PTE_MBZ");
+		cprintf("\n\n");
 	}
 	return 0;
 }
 
 int 
-mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+mon_memdump(int argc, char **argv, struct Trapframe *tf)
 {
+
+	if (argc == 1){
+		cprintf("Usage: memdump [-p] [format] [unit] [number] <address>\n");
+		cprintf("\t      -p dump the physical memory contents\n");
+		cprintf("\t[format] -x hexdecimal\n");
+		cprintf("\t         -u unsigned decimal\n");
+		cprintf("\t         -o octal\n");
+		cprintf("\t  [uint] -b dump in bytes\n");
+		cprintf("\t         -h dump in half-words(two bytes)\n");
+		cprintf("\t         -w dump in words(four bytes\n");
+		cprintf("\t[number] the range of memory start from <address>\n");
+		cprintf("\t<address> hexdecimal format\n");
+		return 1;
+	}
+	int i, hasAddressInput = 0;
+	int isPhys = 0;
+	int format = 0;
+	int unit = 0;
+	int range = 0;
+	uint32_t address = 0;
+
+	for (i = 1; i < argc; i++){
+		if (strcmp(argv[i], "-p") == 0){
+			isPhys = 1;
+		} else if (strcmp(argv[i], "-x") == 0 || strcmp(argv[i], "-u") == 0 || strcmp(argv[i], "-o") == 0){
+			if (strcmp(argv[i], "-x") == 0)
+				format = 0;
+			else if (strcmp(argv[i], "-u") == 0)
+				format = 1;
+			else if (strcmp(argv[i], "-o") == 0)
+				format = 2;
+		} else if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-w") == 0){
+			if (strcmp(argv[i], "-w") == 0)
+				unit = 0;
+			else if (strcmp(argv[i], "-h") == 0)
+				unit = 1;
+			else if (strcmp(argv[i], "-b") == 0)
+				unit = 2;
+		} else if (atoi(argv[i], (uint32_t *)&range) == 0){
+			;
+		} else if (atoh(argv[i], &address) == 0){
+			hasAddressInput = 1;
+		}
+	}
+
+	;
+	if (hasAddressInput){
+		;
+		cprintf("\t<address> hexdecimal format\n");
+	}
+
+	return 0;
+}
+
+// utility functions
+
+// atoh: convert hexdecimal string to unsigned number
+// res : save the hexdecimal number
+// return : 0 success
+// 			1 error
+int 
+atoh(char *str, uint32_t *res)
+{
+	uint32_t len = strlen(str), i, j, v = 0;
+
+	if (len < 3 || str == NULL){
+		return 1;
+	}
+	if (str[0] != '0'){
+		// cprintf("AA\n");
+		return 1;
+	}
+	if (!(str[1] == 'x' || str[1] == 'X')){
+		// cprintf("BB\n");
+		return 1;
+	}
+
+	for (i = 2; i < len; i++){
+		if (str[i] >= '0' && str[i] <= '9'){
+			j = str[i] - '0';
+		} else if (str[i] >= 'a' && str[i] <= 'f'){
+			j = str[i] - 'a' + 10;
+		} else if (str[i] >= 'A' && str[i] <= 'F'){
+			j = str[i] - 'A' + 10;
+		} else {
+			return 1;
+		}
+		v = (v << 4) | j;
+	}
+
+	*res = v;
+	return 0;
+}
+
+
+// atoi: convert decimal string to integer
+// res : save result
+// return : 0 success
+// 			1 error
+int 
+atoi(char *str, uint32_t *res)
+{
+	uint32_t len = strlen(str), i;
+	int v = -1, sign = 0;
+
+	if (len < 1 || str == NULL){
+		return 1;
+	}
+
+	if (str[0] == '-' || str[0] == '+'){
+		if (str[0] == '-'){
+			sign = 1;
+		}
+	} else if (str[0] >= '0' && str[0] <= '9'){
+		v = str[0] - '0';
+	} else {
+		return 1;
+	}
+
+	for (i = 1; i < len; i++){
+		if (str[0] >= '0' && str[0] <= '9'){
+			v = v * 10 + str[0] - '0'; } else {
+			return 1;
+		}
+	}
+
+	if (v == -1){
+		return 1;
+	}
+
+	if (sign){
+		v = -v;
+	}
+
+	*res = v;
 	return 0;
 }
