@@ -620,8 +620,10 @@ page_decref(struct Page* pp)
 {
 	// debug info
 	// cprintf("decref %u\n", pp->pp_ref);
-	if (--pp->pp_ref == 0)
+	if (--pp->pp_ref == 0){
+		// cprintf("Insert into page free list\n");
 		page_free(pp);
+	}
 }
 
 // Given 'pgdir', a pointer to a page directory, pgdir_walk returns

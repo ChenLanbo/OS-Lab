@@ -11,8 +11,8 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 
-// Lab 2 Challenges
 #include <kern/pmap.h>
+// Lab 2 Challenges
 #include <kern/memutil.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
@@ -29,7 +29,9 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Trace back the system stack", mon_backtrace},
-	{ "showmappings", "Display physical page mappings and corresponding permission bits to virtual addresses", mon_showmappings}
+	{ "showmappings", "Display physical page mappings and corresponding permission bits to virtual addresses", mon_showmappings},
+	{ "alloc_page", "Allocate a page of 4KB", mon_alloc_page},
+	{ "free_page", "Free allocated pages", mon_free_page}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 

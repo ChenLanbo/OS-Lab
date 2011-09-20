@@ -8,11 +8,17 @@
 #include <kern/pmap.h>
 #include <inc/string.h>
 
-// char string of hex format
+static int isInitialized = 0;
+static struct Page_list allocated_page_list; // allocated page list by alloc_page command
+
+// Char string of hex format
 int atoh(char *str, uint32_t *res);
-// char string of decimal format
+// Char string of decimal format
 int atoi(char *str, uint32_t *res);
 
+// General memory management utilities
+
+// showmappings: show the physical page mapping of given virtual address
 int 
 mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 {
@@ -102,6 +108,96 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 		;
 		cprintf("\t<address> hexdecimal format\n");
 	}
+
+	return 0;
+}
+
+
+// alloc_page: allocate a physical page of 4KB
+// return 0: allocation succeeded
+//           also print out the physical address of the allocated page
+// return 1: error
+int 
+mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
+{
+	struct Page *pp;
+	// cprintf("%d ----\n", argc);
+	// cprintf("*** %d\n", isInitialized);
+	if (isInitialized == 0){
+		isInitialized = 1;
+		LIST_INIT(&allocated_page_list);
+	}
+
+	if (page_alloc(&pp) != 0){
+		cprintf("No memory available\n");
+		return 1;
+	}
+
+	pp->pp_ref = 1;
+	LIST_INSERT_HEAD(&allocated_page_list, pp, pp_link);
+
+	cprintf("\tNew page: 0x%x\n", page2pa(pp));
+	return 0;
+}
+
+// page_status: show the physical page status given page physical address
+int
+mon_page_status(int argc, char **argv, struct Trapframe *tf)
+{
+	return 0;
+}
+
+// free_page: free the allocated page given page physical address
+// 0 argument: free all the allocated pages allocated by alloc_page command
+// return 0: success
+//        1: error
+int
+mon_free_page(int argc, char **argv, struct Trapframe *tf)
+{
+	struct Page *pp, *var = NULL;
+	physaddr_t address;
+	int inAlloc = 0;
+	if (argc == 1){
+		int empty = 1;
+
+		while (!LIST_EMPTY(&allocated_page_list)){
+			empty = 0;
+			pp = LIST_FIRST(&allocated_page_list);
+			LIST_REMOVE(LIST_FIRST(&allocated_page_list), pp_link);
+
+			cprintf("    Free page: 0x%x\n", page2pa(pp));
+
+			page_decref(pp);
+		}
+
+		if (empty){
+			cprintf("    No allocated pages\n");
+			return 1;
+		}
+		return 0;
+	}
+
+	if (atoh(argv[1], &address) == 1 || (address & 0xFFF)){
+		cprintf("    Error page address\n");
+		return 1;
+	}
+
+	pp = pa2page(address);
+
+	LIST_FOREACH(var, &allocated_page_list, pp_link){
+		if (var == pp){
+			break;
+		}
+	}
+
+	if (var == NULL){
+		cprintf("    Cannot free page: 0x%x\n", address);
+		return 1;
+	}
+
+	LIST_REMOVE(var, pp_link);
+	cprintf("    Free page: 0x%x\n", page2pa(var));
+	page_decref(var);
 
 	return 0;
 }
