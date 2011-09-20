@@ -121,15 +121,14 @@ int
 mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
 {
 	struct Page *pp;
-	// cprintf("%d ----\n", argc);
-	// cprintf("*** %d\n", isInitialized);
+
 	if (isInitialized == 0){
 		isInitialized = 1;
 		LIST_INIT(&allocated_page_list);
 	}
 
 	if (page_alloc(&pp) != 0){
-		cprintf("No memory available\n");
+		cprintf("No free memory available\n");
 		return 1;
 	}
 
@@ -144,6 +143,45 @@ mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
 int
 mon_page_status(int argc, char **argv, struct Trapframe *tf)
 {
+	struct Page *pp, *var;
+	physaddr_t address;
+
+	if (argc == 1){
+		int empty = 1;
+		LIST_FOREACH(var, &allocated_page_list, pp_link){
+			empty = 0;
+			cprintf("    Ref %2u allocated by alloc_page\n", var->pp_ref);
+		}
+
+		if (empty){
+			cprintf("    No pages allocated by alloc_page currently");
+		}
+		return 0;
+	}
+
+	if (atoh(argv[1], &address) == 1 || (address & 0xFFF)){
+		cprintf("    Error page address\n");
+		return 1;
+	}
+
+	pp = pa2page(address);
+
+	if (pp->pp_ref == 0){
+		cprintf("    Ref %2u free\n", pp->pp_ref);
+	} else {
+		cprintf("    Ref %2u allocated ", pp->pp_ref);
+		LIST_FOREACH(var, &allocated_page_list, pp_link){
+			if (var == pp){
+				break;
+			}
+		}
+		if (var == NULL){
+			cprintf("by kernel, cannot be freed\n");
+		} else {
+			cprintf("by alloc_page\n");
+		}
+	}
+
 	return 0;
 }
 
@@ -192,6 +230,11 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 
 	if (var == NULL){
 		cprintf("    Cannot free page: 0x%x\n", address);
+		if (pp->pp_ref == 0){
+			cprintf("    This page is already in free list\n");
+		} else {
+			cprintf("    This page is used by the kernel\n");
+		}
 		return 1;
 	}
 

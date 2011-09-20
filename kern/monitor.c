@@ -31,6 +31,7 @@ static struct Command commands[] = {
 	{ "backtrace", "Trace back the system stack", mon_backtrace},
 	{ "showmappings", "Display physical page mappings and corresponding permission bits to virtual addresses", mon_showmappings},
 	{ "alloc_page", "Allocate a page of 4KB", mon_alloc_page},
+	{ "page_status", "Show physical page status", mon_page_status},
 	{ "free_page", "Free allocated pages", mon_free_page}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
