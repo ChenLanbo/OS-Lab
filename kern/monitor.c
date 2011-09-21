@@ -30,6 +30,7 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Trace back the system stack", mon_backtrace},
 	{ "showmappings", "Display physical page mappings and corresponding permission bits to virtual addresses", mon_showmappings},
+	{ "memdump", "Dump memory contents", mon_memdump },
 	{ "alloc_page", "Allocate a page of 4KB", mon_alloc_page},
 	{ "page_status", "Show physical page status", mon_page_status},
 	{ "free_page", "Free allocated pages", mon_free_page}

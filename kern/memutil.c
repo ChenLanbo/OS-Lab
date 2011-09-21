@@ -55,58 +55,95 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+// memdump: dump the memory contents
 int 
 mon_memdump(int argc, char **argv, struct Trapframe *tf)
 {
 
-	if (argc == 1){
-		cprintf("Usage: memdump [-p] [format] [unit] [number] <address>\n");
-		cprintf("\t      -p dump the physical memory contents\n");
-		cprintf("\t[format] -x hexdecimal\n");
-		cprintf("\t         -u unsigned decimal\n");
-		cprintf("\t         -o octal\n");
-		cprintf("\t  [uint] -b dump in bytes\n");
-		cprintf("\t         -h dump in half-words(two bytes)\n");
-		cprintf("\t         -w dump in words(four bytes\n");
-		cprintf("\t[number] the range of memory start from <address>\n");
-		cprintf("\t<address> hexdecimal format\n");
+	if (argc == 1 || argc > 4){
+		cprintf("Usage: memdump [-p] [number] <address>\n");
+		cprintf("         -p  dump the physical memory contents\n");
+		cprintf("     number  the range of memory in bytes start from <address>\n");
+		cprintf("    address  hexdecimal format\n");
 		return 1;
 	}
-	int i, hasAddressInput = 0;
-	int isPhys = 0;
-	int format = 0;
-	int unit = 0;
-	int range = 0;
-	uint32_t address = 0;
 
-	for (i = 1; i < argc; i++){
-		if (strcmp(argv[i], "-p") == 0){
-			isPhys = 1;
-		} else if (strcmp(argv[i], "-x") == 0 || strcmp(argv[i], "-u") == 0 || strcmp(argv[i], "-o") == 0){
-			if (strcmp(argv[i], "-x") == 0)
-				format = 0;
-			else if (strcmp(argv[i], "-u") == 0)
-				format = 1;
-			else if (strcmp(argv[i], "-o") == 0)
-				format = 2;
-		} else if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-w") == 0){
-			if (strcmp(argv[i], "-w") == 0)
-				unit = 0;
-			else if (strcmp(argv[i], "-h") == 0)
-				unit = 1;
-			else if (strcmp(argv[i], "-b") == 0)
-				unit = 2;
-		} else if (atoi(argv[i], (uint32_t *)&range) == 0){
-			;
-		} else if (atoh(argv[i], &address) == 0){
-			hasAddressInput = 1;
+	pte_t *entry;
+	int i, j, range = 4, physical = 0;
+	uint32_t address;
+	void *a;
+	uint8_t ch; 
+
+	if (argc == 2){
+		if (strcmp(argv[1], "-p") == 0){
+			cprintf("Missing address argument\n");
+			return 1;
+		}
+		if (atoh(argv[1], &address) == 1){
+			cprintf("Error address format, must be hexdecimal\n");
+			return 1;
+		}
+	} else if (argc == 3){
+		if (strcmp(argv[1], "-p") == 0){
+			physical = 1;
+		} else if (atoi(argv[1], (uint32_t *)&range) == 1){
+			cprintf("Unknown number format\n");
+			return 1;
+		}
+		if (atoh(argv[2], &address) == 1){
+			cprintf("Error address format, must be hexdecimal\n");
+			return 1;
+		}
+
+	} else if (argc == 4){
+		if (strcmp(argv[1], "-p") == 0){
+			physical = 1;
+		} else {
+			cprintf("Error arguments\n");
+			return 1;
+		}
+		if (atoi(argv[2], (uint32_t *)&range) == 1){
+			cprintf("Unknown number format\n");
+			return 1;
+		}
+		if (atoh(argv[3], &address) == 1){
+			cprintf("Error address format, must be hexdecimal\n");
+			return 1;
 		}
 	}
 
-	;
-	if (hasAddressInput){
-		;
-		cprintf("\t<address> hexdecimal format\n");
+	cprintf("       Memdump:\n");
+	for (i = 0; i < range; i += 4){
+		cprintf("    0x%08x:", address + i);
+		for (j = 0; j < 4; j++){
+			if (physical){
+				a = (void *)KADDR(address + i + j);
+
+				if ((physaddr_t)a >= max_physaddr){
+					a = NULL;
+				}
+			} else {
+				entry = pgdir_walk(boot_pgdir, (void *)(address + i + j), 0);
+
+				if (entry == NULL){
+					a = NULL;
+				} else {
+					if (*entry & PTE_PS){
+						a = KADDR((PDX(*entry) << PDXSHIFT) | ((address + i + j) & 0x3fffff));
+					} else {
+						a = KADDR((PTE_ADDR(*entry) | ((address + i + j) & 0xfff)));
+					}
+				}
+			}
+
+			if (a != NULL){
+				ch = *((char *)a);
+				cprintf(" %02x", ch);
+			} else {
+				cprintf(" 00");
+			}
+		}
+		cprintf("\n");
 	}
 
 	return 0;
@@ -260,11 +297,9 @@ atoh(char *str, uint32_t *res)
 		return 1;
 	}
 	if (str[0] != '0'){
-		// cprintf("AA\n");
 		return 1;
 	}
 	if (!(str[1] == 'x' || str[1] == 'X')){
-		// cprintf("BB\n");
 		return 1;
 	}
 

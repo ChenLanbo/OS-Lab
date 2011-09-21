@@ -9,6 +9,10 @@
 #include <kern/pmap.h>
 #include <kern/kclock.h>
 
+// for memutil
+physaddr_t max_physaddr;
+
+
 // These variables are set by i386_detect_memory()
 static physaddr_t maxpa;	// Maximum physical address
 size_t npage;			// Amount of physical memory (in pages)
@@ -75,6 +79,9 @@ i386_detect_memory(void)
 		maxpa = basemem;
 
 	npage = maxpa / PGSIZE;
+
+	// for memutil
+	max_physaddr = maxpa;
 
 	cprintf("Physical memory: %dK available, ", (int)(maxpa/1024));
 	cprintf("base = %dK, extended = %dK\n", (int)(basemem/1024), (int)(extmem/1024));

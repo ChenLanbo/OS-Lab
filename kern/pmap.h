@@ -38,6 +38,9 @@
 
 extern char bootstacktop[], bootstack[];
 
+// for memutil
+extern physaddr_t max_physaddr;
+
 extern struct Page *pages;
 extern size_t npage;
 
