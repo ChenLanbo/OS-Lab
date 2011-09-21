@@ -343,7 +343,7 @@ mon_page_status(int argc, char **argv, struct Trapframe *tf)
 		}
 
 		if (empty){
-			cprintf("    No pages allocated by alloc_page currently");
+			cprintf("    No pages allocated by alloc_page currently\n");
 		}
 		return 0;
 	}
