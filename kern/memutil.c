@@ -117,11 +117,11 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 		cprintf("    0x%08x:", address + i);
 		for (j = 0; j < 4; j++){
 			if (physical){
-				a = (void *)KADDR(address + i + j);
-
-				if ((physaddr_t)a >= max_physaddr){
+				if ((physaddr_t)(address + i + j) >= max_physaddr){
 					a = NULL;
 				}
+
+				a = (void *)KADDR(address + i + j);
 			} else {
 				entry = pgdir_walk(boot_pgdir, (void *)(address + i + j), 0);
 
