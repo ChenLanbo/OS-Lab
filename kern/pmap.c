@@ -286,7 +286,7 @@ i386_vm_init(void)
 
 	// Modify
 	uint32_t i, j = 0;
-	for (i = 0; i < 0x10000000; i += PGSIZE * 1024){
+	for (i = 0; i < 0x10000000; i += PTSIZE){
 		j++;
 		pgdir[PDX(i)] = pgdir[PDX(KERNBASE + i)];
 	}
@@ -327,7 +327,7 @@ i386_vm_init(void)
 	// This mapping was only used after paging was turned on but
 	// before the segment registers were reloaded.
 	// pgdir[0] = 0;
-	for (i = 0; i < 0x10000000; i += PGSIZE * 1024){
+	for (i = 0; i < 0x10000000; i += PTSIZE){
 		pgdir[PDX(i)] = 0;
 	}
 
