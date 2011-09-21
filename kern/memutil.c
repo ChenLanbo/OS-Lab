@@ -55,6 +55,158 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+// mapping_chmod: change the permissions of the mapping 
+// 				  in the current address space
+int
+mon_mapping_chmod(int argc, char **argv, struct Trapframe *tf)
+{
+	if (argc == 1 || argc == 2 || argc > 4){
+		cprintf("Usage: mapping_chmod [+Perm] [-Perm] address\n");
+		cprintf("  +Perm  add permission to the page mapping\n");
+		cprintf("  -Perm  remove permission from the page mapping\n");
+		cprintf("   Perm  w    --- read and write\n");
+		cprintf("         u    --- user level access\n");
+		cprintf("         pwt  --- page level write through\n");
+		cprintf("         pcd  --- page level cache disable\n");
+		cprintf("         a    --- accessed\n");
+		cprintf("         d    --- dirty\n");
+		cprintf("         mbz  --- bits must be zero\n");
+		cprintf(" address hexdecimal format like 0xffffffff\n");
+		return 1;
+	}
+
+	uint32_t perm_on = 0, perm_off = 0, address;
+	pte_t *entry;
+
+	if (argc == 3){
+		if (argv[1][0] == '+'){
+
+			if (strcmp(argv[1]+1, "w") == 0){
+				perm_on = PTE_W;
+			} else if (strcmp(argv[1]+1, "u") == 0){
+				perm_on = PTE_U;
+			} else if (strcmp(argv[1]+1, "pwt") == 0){
+				perm_on = PTE_PWT;
+			} else if (strcmp(argv[1]+1, "pcd") == 0){
+				perm_on = PTE_PCD;
+			} else if (strcmp(argv[1]+1, "a") == 0){
+				perm_on = PTE_A;
+			} else if (strcmp(argv[1]+1, "d") == 0){
+				perm_on = PTE_D;
+			} else if (strcmp(argv[1]+1, "mbz") == 0){
+				perm_on = PTE_MBZ;
+			} else {
+				cprintf("Error permission\n");
+				return 1;
+			}
+
+		} else if (argv[1][0] == '-'){
+
+			if (strcmp(argv[1]+1, "w") == 0){
+				perm_off = PTE_W;
+			} else if (strcmp(argv[1]+1, "u") == 0){
+				perm_off = PTE_U;
+			} else if (strcmp(argv[1]+1, "pwt") == 0){
+				perm_off = PTE_PWT;
+			} else if (strcmp(argv[1]+1, "pcd") == 0){
+				perm_off = PTE_PCD;
+			} else if (strcmp(argv[1]+1, "a") == 0){
+				perm_off = PTE_A;
+			} else if (strcmp(argv[1]+1, "d") == 0){
+				perm_off = PTE_D;
+			} else if (strcmp(argv[1]+1, "mbz") == 0){
+				perm_off = PTE_MBZ;
+			} else {
+				cprintf("Error permission\n");
+				return 1;
+			}
+
+		} else {
+			cprintf("Error option\n");
+			return 1;
+		}
+
+		if (atoh(argv[2], &address) == 1){
+			cprintf("Error address format\n");
+			return 1;
+		}
+
+	} else if (argc == 4){
+
+		if (argv[1][0] == '+'){
+
+			if (strcmp(argv[1]+1, "w") == 0){
+				perm_on = PTE_W;
+			} else if (strcmp(argv[1]+1, "u") == 0){
+				perm_on = PTE_U;
+			} else if (strcmp(argv[1]+1, "pwt") == 0){
+				perm_on = PTE_PWT;
+			} else if (strcmp(argv[1]+1, "pcd") == 0){
+				perm_on = PTE_PCD;
+			} else if (strcmp(argv[1]+1, "a") == 0){
+				perm_on = PTE_A;
+			} else if (strcmp(argv[1]+1, "d") == 0){
+				perm_on = PTE_D;
+			} else if (strcmp(argv[1]+1, "mbz") == 0){
+				perm_on = PTE_MBZ;
+			} else {
+				cprintf("Error permission\n");
+				return 1;
+			}
+
+		} else {
+			cprintf("No add option\n");
+			return 1;
+		}
+
+		if (argv[2][0] == '-'){
+
+			if (strcmp(argv[1]+1, "w") == 0){
+				perm_off = PTE_W;
+			} else if (strcmp(argv[1]+1, "u") == 0){
+				perm_off = PTE_U;
+			} else if (strcmp(argv[1]+1, "pwt") == 0){
+				perm_off = PTE_PWT;
+			} else if (strcmp(argv[1]+1, "pcd") == 0){
+				perm_off = PTE_PCD;
+			} else if (strcmp(argv[1]+1, "a") == 0){
+				perm_off = PTE_A;
+			} else if (strcmp(argv[1]+1, "d") == 0){
+				perm_off = PTE_D;
+			} else if (strcmp(argv[1]+1, "mbz") == 0){
+				perm_off = PTE_MBZ;
+			} else {
+				cprintf("Error permission\n");
+				return 1;
+			}
+
+		} else {
+			cprintf("No remove option\n");
+			return 1;
+		}
+
+		if (atoh(argv[3], &address) == 1){
+			cprintf("Error address format\n");
+			return 1;
+		}
+	}
+
+	entry = pgdir_walk(boot_pgdir, (void *)address, 0);
+
+	if (entry == NULL){
+		cprintf("Virtual address 0x%08x currently is not mapped to any page\n", address);
+		return 1;
+	}
+
+	*entry |= perm_on;
+
+	if (*entry & perm_off){
+		(*entry) ^= perm_off;
+	}
+
+	return 0;
+}
+
 // memdump: dump the memory contents
 int 
 mon_memdump(int argc, char **argv, struct Trapframe *tf)

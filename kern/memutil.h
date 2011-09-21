@@ -8,6 +8,7 @@
 struct Trapframe;
 
 int mon_showmappings(int argc, char **argv, struct Trapframe *tf);
+int mon_mapping_chmod(int argc, char **argv, struct Trapframe *tf);
 int mon_memdump(int argc, char **argv, struct Trapframe *tf);
 
 // alloc_page: allocate a page of 4KB
