@@ -141,12 +141,25 @@ Challenge 4:
 *****************************************************************************************************
 Challenge 5: Extend the JOS kernel monitor with commands to allocate and free pages explicitly
 
-	Add alloc_page, page_status and free_page in memutil.c to allocate and free pages in monitor
+	Add alloc_page, page_status and free_page in memutil.c to allocate and free pages in monitor. The
+	allocated_page_list stores all the physical pages allocated by alloc_page command.
 
-	alloc_page: alloc a page of 4KB
+	alloc_page: alloc a physical page of 4KB
+
+		USAGE: alloc_page
+
+		OUTPUT: The function returns 0 if allocation succeeds and outputs the page's physical address.
+				The new allocated page will be put into allocated_page_list. The function returns 1 
+				if no memory available.
+
+		TEST:
+
+		K> alloc_page -h
 		Usage: alloc_page
-		Return: 1 --> no free memory available
-				0 --> success, and output new allocated page's physical address
+		K> alloc_page
+		    New page: 0x40fe000
+		K> alloc_page
+		    New page: 0x40fb000
 
 	page_status: show the physical page status given page's physcial address
 		Usage: page_status [address]
