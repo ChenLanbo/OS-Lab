@@ -4,12 +4,18 @@ Lab2: Challenge Problem
 
 Challenge 1: space-efficient Kernel mapping using PTE_PS
 	
-	When mapping [KERNBASE, 2^32) to [0, 2^32 - KERNBASE), I set the perm to 'PTE_W | PTE_PS'
-	in boot_map_segment.
+	When mapping [KERNBASE, 2^32) to [0, 2^32 - KERNBASE), first set the perm argument to be 
+	'PTE_W | PTE_PS' in boot_map_segment.
 
-	In function boot_map_segment, first check the perm has PTE_PS. If it has, then we set the
-	page directory entry to be 'pa | perm | PTE_P'. Since the page directory entry can repre-
-	sent 4MB physical page and the kernel has max memory of 256MB, we just need to set the 
+	In function boot_map_segment, check if the perm has PTE_PS on. If so, set the page 
+	directory entry to be 'pa | perm | PTE_P'. 
+
+		for (i = 0; i < size; i += PGSIZE * 1024){
+			entry = &pgdir[PDX(la + i)];
+			*entry = (physaddr_t)(pa + i) | perm | PTE_P;
+		}
+	
+	Since a page directory entry can represent 4MB physical page and the kernel has max memory of 256MB, we just need to set the 
 	values of 64 page directory entry. Thus we save 64 4K pages.
 
 	In the end, we have to set the CR4_PSE bit in cr4 register in order to enable extention.
