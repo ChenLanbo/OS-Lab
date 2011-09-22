@@ -213,12 +213,12 @@ mon_mapping_chmod(int argc, char **argv, struct Trapframe *tf)
 int 
 mon_memdump(int argc, char **argv, struct Trapframe *tf)
 {
-
+	// arguments check
 	if (argc == 1 || argc > 4){
-		cprintf("Usage: memdump [-p] [number] <address>\n");
-		cprintf("         -p  dump the physical memory contents\n");
-		cprintf("     number  the range of memory in bytes start from <address>\n");
-		cprintf("    address  hexdecimal format\n");
+		cprintf("Usage: memdump [-p] [range] address\n");
+		cprintf("            -p  dump the physical memory contents\n");
+		cprintf("         range  the range of memory in bytes start from address\n");
+		cprintf("       address  starting address in hexdecimal format like 0x00000000\n");
 		return 1;
 	}
 
@@ -234,18 +234,18 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 			return 1;
 		}
 		if (atoh(argv[1], &address) == 1){
-			cprintf("Error address format, must be hexdecimal\n");
+			cprintf("Error address format. It must be hexdecimal like 0x00000000\n");
 			return 1;
 		}
 	} else if (argc == 3){
 		if (strcmp(argv[1], "-p") == 0){
 			physical = 1;
-		} else if (atoi(argv[1], (uint32_t *)&range) == 1){
+		} else if (atoi(argv[1], (uint32_t *)&range) == 1 && atoh(argv[1], (uint32_t *)&range) == 1){
 			cprintf("Unknown number format\n");
 			return 1;
 		}
 		if (atoh(argv[2], &address) == 1){
-			cprintf("Error address format, must be hexdecimal\n");
+			cprintf("Error address format. It must be hexdecimal\n");
 			return 1;
 		}
 
@@ -261,7 +261,7 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 			return 1;
 		}
 		if (atoh(argv[3], &address) == 1){
-			cprintf("Error address format, must be hexdecimal\n");
+			cprintf("Error address format. It must be hexdecimal\n");
 			return 1;
 		}
 	}
@@ -270,26 +270,33 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 	for (i = 0; i < range; i += 4){
 		cprintf("    0x%08x:", address + i);
 		for (j = 0; j < 4; j++){
+			// physical address option is set
 			if (physical){
+
 				if ((physaddr_t)(address + i + j) >= max_physaddr){
 					a = NULL;
+				} else {
+					a = (void *)KADDR(address + i + j);
 				}
 
-				a = (void *)KADDR(address + i + j);
 			} else {
+
 				entry = pgdir_walk(boot_pgdir, (void *)(address + i + j), 0);
 
 				if (entry == NULL){
 					a = NULL;
 				} else {
+					// PTE_PS bit is set
 					if (*entry & PTE_PS){
 						a = KADDR((PDX(*entry) << PDXSHIFT) | ((address + i + j) & 0x3fffff));
 					} else {
 						a = KADDR((PTE_ADDR(*entry) | ((address + i + j) & 0xfff)));
 					}
+
 				}
 			}
 
+			// output
 			if (a != NULL){
 				ch = *((char *)a);
 				cprintf(" %02x", ch);

@@ -1,7 +1,8 @@
 Name: Lanbo Chen
 ID  : #108079696
-Lab2: Challenge Problem
+Lab2: Challenge Problems
 
+*****************************************************************************************************
 Challenge 1: space-efficient Kernel mapping using PTE_PS
 	
 	When mapping [KERNBASE, 2^32) to [0, 2^32 - KERNBASE), first set the perm argument to be 
@@ -27,7 +28,7 @@ Challenge 1: space-efficient Kernel mapping using PTE_PS
 		cr4 |= CR4_PSE;
 		lcr4(cr4);
 
-	Test:
+	TEST:
 
 	To test the solution, we need to add monitor command showmappings which is described in
 	challenge 2 to show the physical address mapping of virtual address. To test the solution
@@ -45,21 +46,22 @@ Challenge 1: space-efficient Kernel mapping using PTE_PS
 	Without PTE_PS set, virtual address 0xf0000000 and 0xf0001000 are supposed to be mapped
 	to different physical address. Here we can see they are both mapped to 0x00000000.
 
-
+*****************************************************************************************************
 Challenge 2: Monitor commands extension
 
-	I add two new files which are 'memutil.h' and 'memutil.c' in kern/ to define memory mangement functions.
+	I add two new files which are 'memutil.h' and 'memutil.c' in kern/ to define memory mangement 
+	commands.
 
 	showmappings: show the physical page mappings of given virtual addresses
 
-		Usage: showmappings virtual_address ...
+		USAGE: showmappings virtual_address ...
 
-		Output: if the virtual address is not mapped into physical page physical, then just output no mapping. 
-				Otherwise, show the page physical address and permissions.
+		OUTPUT: if the virtual address is not mapped into physical page physical, then just output no 
+				mapping. Otherwise, show the page physical address and permissions.
 
 		Use pgdir_walk in pmap.c
 
-		Test:
+		TEST:
 
 		K> showmappings 0xf0000000 0xf0001000
 		0xf0000000: mapped to physical page at address 0x00000000
@@ -72,18 +74,42 @@ Challenge 2: Monitor commands extension
 		0x00010000: currently has no mapping
 
 
-	mapping_chmod: explicitly set & clear any mapping in the current address space
-		Usage: mapping_chmod [+Perm] [-Perm] virtual address
+	mapping_chmod: explicitly set & clear the permissions of any mapping in the current address space
+
+		USAGE: mapping_chmod [+Perm] [-Perm] virtual_address
+
 		Return : 0 success, 1 error
 				 For any wrong input or no mapping of given virtual address, the function
 				 return 1
 		Allowed permission: PTE_W, PTE_U, PTE_PWT, PTE_PCD, PTE_A, PTE_D, PTE_MBZ
 
 	memdump: dump the memory contents
-		Usage: memdump [-p] [range] address
-				  -p  dump the physical memory
-				  default range is 4
-		Output: show every byte from [address, address + range)
+
+		USAGE: memdump [-p] [range] address
+				    -p  dump the physical memory contents
+				 range  the range of memory in bytes start from address
+			   address  starting address in hexdecimal format like 0x00000000
+
+		OUTPUT: show every byte content from [address, address + range). If it is to dump physical
+				memory, first check if each address in the range is out of physical memory range, 
+				and then use KADDR macro to convert the address. If it is to dump virtual address,
+				then just use pgdir_walk in pmap.c to get the page table entry and see if it has
+				been mapped. If the address is out of range or not mapped, just output zero.
+
+		TEST:
+
+		K> memdump -p 16 0x00100000
+		       Memdump:
+		    0x00100000: 02 b0 ad 1b
+		    0x00100004: 03 00 00 00
+		    0x00100008: fb 4f 52 e4
+
+	    K> memdump 16 0xf0100000
+	           Memdump:
+	        0xf0100000: 02 b0 ad 1b
+		    0xf0100004: 03 00 00 00
+		    0xf0100008: fb 4f 52 e4
+
 
 Challenge 3:
 
