@@ -39,6 +39,9 @@ struct Env;
 
 extern char bootstacktop[], bootstack[];
 
+// for memutil
+extern physaddr_t max_physaddr;
+
 extern struct Page *pages;
 extern size_t npage;
 
@@ -61,15 +64,18 @@ void	page_decref(struct Page *pp);
 
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
+// lab3
 int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
 void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
 
+//get the page number of the page
 static inline ppn_t
 page2ppn(struct Page *pp)
 {
 	return pp - pages;
 }
 
+//get the physical address of the page
 static inline physaddr_t
 page2pa(struct Page *pp)
 {
@@ -87,6 +93,7 @@ pa2page(physaddr_t pa)
 static inline void*
 page2kva(struct Page *pp)
 {
+	//cprintf("Page number: %u\n", page2ppn(pp));
 	return KADDR(page2pa(pp));
 }
 
