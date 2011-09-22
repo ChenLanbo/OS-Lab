@@ -10,29 +10,67 @@ Challenge 1: space-efficient Kernel mapping using PTE_PS
 	In function boot_map_segment, check if the perm has PTE_PS on. If so, set the page 
 	directory entry to be 'pa | perm | PTE_P'. 
 
-		for (i = 0; i < size; i += PGSIZE * 1024){
+		for (i = 0; i < size; i += PTSIZE){
 			entry = &pgdir[PDX(la + i)];
 			*entry = (physaddr_t)(pa + i) | perm | PTE_P;
 		}
 	
-	Since a page directory entry can represent 4MB physical page and the kernel has max memory of 256MB, we just need to set the 
-	values of 64 page directory entry. Thus we save 64 4K pages.
+	Since a page directory entry can represent 4MB physical page and the kernel has max memory 
+	of 256MB, we just need to set the values of 64 page directory entries from KERNBASE. Thus 
+	we save 64 4K pages.
 
-	In the end, we have to set the CR4_PSE bit in cr4 register in order to enable extention.
-	This is done after installing page table first time and before turing on paging.
+	At last, in function i386_vm_init, we have to set the CR4_PSE bit in cr4 register in order 
+	to enable 4MB page extention.  This is done after installing page table first time and 
+	before turing on paging.
+
+		cr4 = rcr4();
+		cr4 |= CR4_PSE;
+		lcr4(cr4);
+
+	Test:
+
+	To test the solution, we need to add monitor command showmappings which is described in
+	challenge 2 to show the physical address mapping of virtual address. To test the solution
+	is right, we just need to show the base physical mappings are the same for different 
+	virtual address. Examples are here:
+
+		K> showmappings 0xf0000000
+		0xf0000000: mapped to physical page at address 0x00000000
+	     	Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+		K> showmappings 0xf0001000
+		0xf0001000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+	
+	Without PTE_PS set, virtual address 0xf0000000 and 0xf0001000 are supposed to be mapped
+	to different physical address. Here we can see they are both mapped to 0x00000000.
 
 
 Challenge 2: Monitor commands extension
 
-	I add two new files which are memutil.h and memutil.c to define memory mangement functio-
-	ns.
+	I add two new files which are 'memutil.h' and 'memutil.c' in kern/ to define memory mangement functions.
 
-	showmappings: show the physical mappings of given virtual addresses
-		Usage: showmappings [virtual address] ...
-		Output: if the virtual address is not mapped into physical page physical, then just
-				output no mapping. Otherwise, show the page address and permissions.
+	showmappings: show the physical page mappings of given virtual addresses
+
+		Usage: showmappings virtual_address ...
+
+		Output: if the virtual address is not mapped into physical page physical, then just output no mapping. 
+				Otherwise, show the page physical address and permissions.
 
 		Use pgdir_walk in pmap.c
+
+		Test:
+
+		K> showmappings 0xf0000000 0xf0001000
+		0xf0000000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+	 	0xf0001000: mapped to physical page at address 0x00000000
+			 Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+		K> showmappings 0x00010000
+		0x00010000: currently has no mapping
+
 
 	mapping_chmod: explicitly set & clear any mapping in the current address space
 		Usage: mapping_chmod [+Perm] [-Perm] virtual address

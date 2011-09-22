@@ -26,18 +26,20 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 	uint32_t va, len;
 
 	if (argc == 1){
-		cprintf("Usage: showmappings [virtual address]\n");
+		cprintf("Usage: showmappings virtual_address ...\n");
+		cprintf("    virtual_address must be hexdecimal format like 0x00000000\n");
 		return 1;
 	}
 
 	for (i = 1; i < argc; i++){
-		if (atoh(argv[i], &va) == 1 && atoi(argv[i], &va) == 1){
-			cprintf("Error address format: %s\n", argv[i]);
-			continue;
+		if (atoh(argv[i], &va) == 1){ //&& atoi(argv[i], &va) == 1)
+			cprintf("Error address format for argument %d: %s\n", argv[i], i);
+			return 1;
 		}
+
 		pte_t *entry = pgdir_walk(boot_pgdir, (void *)va, 0);
 		if (entry == NULL){
-			cprintf("%08x: currently has no mapping\n", va);
+			cprintf("0x%08x: currently has no mapping\n\n", va);
 			continue;
 		}
 		cprintf("0x%08x: mapped to physical page at address 0x%08x\n", va, PTE_ADDR(*entry));
