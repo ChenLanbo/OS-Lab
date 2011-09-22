@@ -1,0 +1,62 @@
+Name: Lanbo Chen
+ID  : #108079696
+Lab2: Challenge Problem
+
+Challenge 1: space-efficient Kernel mapping using PTE_PS
+	
+	When mapping [KERNBASE, 2^32) to [0, 2^32 - KERNBASE), I set the perm to 'PTE_W | PTE_PS'
+	in boot_map_segment.
+
+	In function boot_map_segment, first check the perm has PTE_PS. If it has, then we set the
+	page directory entry to be 'pa | perm | PTE_P'. Since the page directory entry can repre-
+	sent 4MB physical page and the kernel has max memory of 256MB, we just need to set the 
+	values of 64 page directory entry. Thus we save 64 4K pages.
+
+	In the end, we have to set the CR4_PSE bit in cr4 register in order to enable extention.
+	This is done after installing page table first time and before turing on paging.
+
+
+Challenge 2: Monitor commands extension
+
+	I add two new files which are memutil.h and memutil.c to define memory mangement functio-
+	ns.
+
+	showmappings: show the physical mappings of given virtual addresses
+		Usage: showmappings [virtual address] ...
+		Output: if the virtual address is not mapped into physical page physical, then just
+				output no mapping. Otherwise, show the page address and permissions.
+
+		Use pgdir_walk in pmap.c
+
+	mapping_chmod: explicitly set & clear any mapping in the current address space
+		Usage: mapping_chmod [+Perm] [-Perm] virtual address
+		Return : 0 success, 1 error
+				 For any wrong input or no mapping of given virtual address, the function
+				 return 1
+		Allowed permission: PTE_W, PTE_U, PTE_PWT, PTE_PCD, PTE_A, PTE_D, PTE_MBZ
+
+	memdump: dump the memory contents
+		Usage: memdump [-p] [range] address
+				  -p  dump the physical memory
+				  default range is 4
+		Output: show every byte from [address, address + range)
+
+Challenge 3:
+
+Challenge 4:
+
+Challenge 5: add alloc_page, page_status, free_page commands
+
+	These three functions are defined in memutil.h and memutil.c
+
+	alloc_page: alloc a page of 4KB
+		Usage: alloc_page
+		Return: 1 --> no free memory available
+				0 --> success, and output new allocated page's physical address
+
+	page_status: show the physical page status given page's physcial address
+		Usage: page_status [address]
+			   with 0 argument, page_status show all the pages allocated by alloc_page
+
+	free_page: free the allocated page given page's physical address
+		Usage: free_page address
