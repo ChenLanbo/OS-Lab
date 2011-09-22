@@ -325,6 +325,11 @@ mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
 		LIST_INIT(&allocated_page_list);
 	}
 
+	if (argc != 1){
+		cprintf("Usage: alloc_page\n");
+		return 1;
+	}
+
 	if (page_alloc(&pp) != 0){
 		cprintf("No free memory available\n");
 		return 1;
@@ -333,7 +338,7 @@ mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
 	pp->pp_ref = 1;
 	LIST_INSERT_HEAD(&allocated_page_list, pp, pp_link);
 
-	cprintf("\tNew page: 0x%x\n", page2pa(pp));
+	cprintf("    New page: 0x%x\n", page2pa(pp));
 	return 0;
 }
 

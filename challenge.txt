@@ -76,12 +76,33 @@ Challenge 2: Monitor commands extension
 
 	mapping_chmod: explicitly set & clear the permissions of any mapping in the current address space
 
-		USAGE: mapping_chmod [+Perm] [-Perm] virtual_address
+		USAGE: mapping_chmod [+Perm] [-Perm] address
+	                   +Perm  add permission to the page mapping of address
+	                   -Perm  remove permission from the page mapping of address
+	                    perm  w    --- read and write
+	                          u    --- user level access
+                              pwt  --- page level write through
+                              pcd  --- page level cache disable
+                              a    --- accessed
+						      d    --- dirty
+      				          mbz  --- bits must be zero
+                     address  hexdecimal format like 0xffffffff
 
-		Return : 0 success, 1 error
-				 For any wrong input or no mapping of given virtual address, the function
-				 return 1
 		Allowed permission: PTE_W, PTE_U, PTE_PWT, PTE_PCD, PTE_A, PTE_D, PTE_MBZ
+
+		OUTPUT: if the change succeed, the function returns 0. Otherwise the function returns 1.
+
+		TEST:
+
+		K> showmappings 0xf0000000
+		0xf0000000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+	    K> mapping_chmod +u 0xf0000000
+		K> showmappings 0xf0000000
+		0xf0000000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_U PTE_A PTE_D PTE_PS PTE_MBZ
+
 
 	memdump: dump the memory contents
 
@@ -111,13 +132,16 @@ Challenge 2: Monitor commands extension
 		    0xf0100008: fb 4f 52 e4
 
 
+*****************************************************************************************************
 Challenge 3:
 
+*****************************************************************************************************
 Challenge 4:
 
-Challenge 5: add alloc_page, page_status, free_page commands
+*****************************************************************************************************
+Challenge 5: Extend the JOS kernel monitor with commands to allocate and free pages explicitly
 
-	These three functions are defined in memutil.h and memutil.c
+	Add alloc_page, page_status and free_page in memutil.c to allocate and free pages in monitor
 
 	alloc_page: alloc a page of 4KB
 		Usage: alloc_page
