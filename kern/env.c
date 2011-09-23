@@ -74,6 +74,13 @@ void
 env_init(void)
 {
 	// LAB 3: Your code here.
+	int i;
+	LIST_INIT(&env_free_list);
+	// memset(envs, 0, sizeof(envs));
+	for (i = NENV - 1; i >= 0; i--){
+		envs[i].env_id = 0;
+		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
+	}
 }
 
 //
@@ -89,6 +96,7 @@ env_init(void)
 static int
 env_setup_vm(struct Env *e)
 {
+	uint32_t n;
 	int i, r;
 	struct Page *p = NULL;
 
@@ -115,6 +123,32 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	p->pp_ref = 1;
+	memset(page2kva(p), 0, PGSIZE);
+
+	e->env_pgdir = page2kva(p);
+	e->env_cr3 = page2pa(p);
+
+	for (i = 0; i < 1024; i++){
+		(e->env_pgdir)[i] = boot_pgdir[i];
+	}
+
+	// now setup the kernel portion of the new environment's address space
+	// UPAGES
+	// n = ROUNDUP(npage * sizeof(struct Page), PGSIZE);
+	// if ((r = boot_map_segment(e->env_pgdir, UPAGES, n, PADDR(pages), PTE_U)) < 0){
+	// 	  return r;
+	// }
+
+	// UENVS
+	// n = ROUNDUP(NENV * sizeof(struct Env), PGSIZE);
+	// boot_map_segment(e->env_pgdir, UENVS, n, PADDR(envs), PTE_U);
+
+	// KSTACKTOP
+	// boot_map_segment(e->env_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), 0);
+
+	// KERNBASE
+	// boot_map_segment(e->env_pgdir, KERNBASE, 0x10000000, 0, PTE_PS);
 
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
@@ -199,6 +233,18 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	// Hint: It is easier to use segment_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
+	uint32_t i, lbound, rbound;
+	struct Page *p;
+	lbound = ROUNDDOWN((uint32_t)va, PGSIZE);
+	rbound = ROUNDUP((uint32_t)va + len, PGSIZE);
+
+	for (i = lbound; i < rbound; i += PGSIZE){
+		if (page_alloc(&p) == -E_NO_MEM){
+			panic("No memory available\n");
+		}
+
+		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W);
+	}
 }
 
 //
