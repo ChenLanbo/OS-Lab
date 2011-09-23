@@ -146,7 +146,7 @@ Challenge 5: Extend the JOS kernel monitor with commands to allocate and free pa
 
 	alloc_page: alloc a physical page of 4KB
 
-		USAGE: alloc_page
+		USAGE: alloc_page [-h]
 
 		OUTPUT: The function returns 0 if allocation succeeds and outputs the page's physical address.
 				The new allocated page will be put into allocated_page_list. The function returns 1 
