@@ -405,7 +405,15 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 	struct Page *pp, *var = NULL;
 	physaddr_t address;
 	int inAlloc = 0;
-	if (argc == 1){
+
+	if (argc == 1 || argc > 2){
+		cprintf("Usage: free_page [-a | address]\n");
+		cprintf("    	 -a  free all the pages allocated by alloc_page\n");
+		cprintf("   address  free the page whose physical address is 'address'\n");
+		return 1;
+	}
+
+	if (strcmp(argv[1], "-a") == 0){
 		int empty = 1;
 
 		while (!LIST_EMPTY(&allocated_page_list)){
@@ -413,13 +421,13 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 			pp = LIST_FIRST(&allocated_page_list);
 			LIST_REMOVE(LIST_FIRST(&allocated_page_list), pp_link);
 
-			cprintf("    Free page: 0x%x\n", page2pa(pp));
+			cprintf("    Free page: 0x%08x\n", page2pa(pp));
 
 			page_decref(pp);
 		}
 
 		if (empty){
-			cprintf("    No allocated pages\n");
+			cprintf("    No allocated pages by alloc_page\n");
 			return 1;
 		}
 		return 0;
@@ -439,7 +447,7 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 	}
 
 	if (var == NULL){
-		cprintf("    Cannot free page: 0x%x\n", address);
+		cprintf("    Cannot free page: 0x%08x\n", address);
 		if (pp->pp_ref == 0){
 			cprintf("    This page is already in free list\n");
 		} else {
@@ -449,7 +457,7 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 	}
 
 	LIST_REMOVE(var, pp_link);
-	cprintf("    Free page: 0x%x\n", page2pa(var));
+	cprintf("    Free page: 0x%08x\n", page2pa(var));
 	page_decref(var);
 
 	return 0;

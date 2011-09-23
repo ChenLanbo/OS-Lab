@@ -164,6 +164,8 @@ Challenge 5: Extend the JOS kernel monitor with commands to allocate and free pa
 	page_status: show the physical page status given page's physcial address
 
 		USAGE: page_status [-a | address]
+				-a  show all the physical pages allocated by alloc_page
+		   address  physical page address
 
 		OUTPUT: the function outputs the physical page status given the page's physical address.
 				With '-a' option, the function outputs all the pages allocated by alloc_page
@@ -191,4 +193,30 @@ Challenge 5: Extend the JOS kernel monitor with commands to allocate and free pa
 
 
 	free_page: free the allocated page given page's physical address
-		Usage: free_page address
+
+		USAGE: free_page [-a | address]
+				-a  free all the physical pages allocated by alloc_page
+		   address  physical page address
+
+		OUTPUT: If the free succeeds, output the freed page address. Removing the page allocated
+				by kernel is prohibited.
+
+		TEST:
+
+		K> free_page -a
+			No allocated pages by alloc_page
+		K> alloc_page
+			New page: 0x40fe000
+		K> alloc_page
+			New page: 0x40fb000
+		K> alloc_page
+			New page: 0x40fa000
+		K> free_page 0x40fb000
+			Free page: 0x040fb000
+		K> free_page -a
+			Free page: 0x040fa000
+			Free page: 0x040fe000
+		K> free_page 0x00000
+			Cannot free page: 0x00000000
+			This page is used by the kernel
+
