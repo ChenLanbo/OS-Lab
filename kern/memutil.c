@@ -349,11 +349,18 @@ mon_page_status(int argc, char **argv, struct Trapframe *tf)
 	struct Page *pp, *var;
 	physaddr_t address;
 
-	if (argc == 1){
+	if (argc == 1 || argc > 2){
+		cprintf("Usage: page_status [-a | address]\n");
+		cprintf("        -a  show all the physical pages allocated by alloc_page\n");
+		cprintf("   address  physical page address\n");
+		return 1;
+	}
+
+	if (strcmp(argv[1], "-a") == 0){
 		int empty = 1;
 		LIST_FOREACH(var, &allocated_page_list, pp_link){
 			empty = 0;
-			cprintf("    Ref %2u allocated by alloc_page\n", var->pp_ref);
+			cprintf("    Page 0x%08x is allocated by alloc_page\n", page2pa(var));
 		}
 
 		if (empty){
@@ -370,9 +377,9 @@ mon_page_status(int argc, char **argv, struct Trapframe *tf)
 	pp = pa2page(address);
 
 	if (pp->pp_ref == 0){
-		cprintf("    Ref %2u free\n", pp->pp_ref);
+		cprintf("    Page 0x%08x is free\n", page2pa(pp));
 	} else {
-		cprintf("    Ref %2u allocated ", pp->pp_ref);
+		cprintf("    Page 0x%08x is allocated ", page2pa(pp));
 		LIST_FOREACH(var, &allocated_page_list, pp_link){
 			if (var == pp){
 				break;
