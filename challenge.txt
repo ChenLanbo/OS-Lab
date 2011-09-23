@@ -1,62 +1,222 @@
 Name: Lanbo Chen
 ID  : #108079696
-Lab2: Challenge Problem
+Lab2: Challenge Problems
 
+*****************************************************************************************************
 Challenge 1: space-efficient Kernel mapping using PTE_PS
 	
-	When mapping [KERNBASE, 2^32) to [0, 2^32 - KERNBASE), I set the perm to 'PTE_W | PTE_PS'
-	in boot_map_segment.
+	When mapping [KERNBASE, 2^32) to [0, 2^32 - KERNBASE), first set the perm argument to be 
+	'PTE_W | PTE_PS' in boot_map_segment.
 
-	In function boot_map_segment, first check the perm has PTE_PS. If it has, then we set the
-	page directory entry to be 'pa | perm | PTE_P'. Since the page directory entry can repre-
-	sent 4MB physical page and the kernel has max memory of 256MB, we just need to set the 
-	values of 64 page directory entry. Thus we save 64 4K pages.
+	In function boot_map_segment, check if the perm has PTE_PS on. If so, set the page 
+	directory entry to be 'pa | perm | PTE_P'. 
 
-	In the end, we have to set the CR4_PSE bit in cr4 register in order to enable extention.
-	This is done after installing page table first time and before turing on paging.
+		for (i = 0; i < size; i += PTSIZE){
+			entry = &pgdir[PDX(la + i)];
+			*entry = (physaddr_t)(pa + i) | perm | PTE_P;
+		}
+	
+	Since a page directory entry can represent 4MB physical page and the kernel has max memory 
+	of 256MB, we just need to set the values of 64 page directory entries from KERNBASE. Thus 
+	we save 64 4K pages.
 
+	At last, in function i386_vm_init, we have to set the CR4_PSE bit in cr4 register in order 
+	to enable 4MB page extention.  This is done after installing page table first time and 
+	before turing on paging.
 
+		cr4 = rcr4();
+		cr4 |= CR4_PSE;
+		lcr4(cr4);
+
+	TEST:
+
+	To test the solution, we need to add monitor command showmappings which is described in
+	challenge 2 to show the physical address mapping of virtual address. To test the solution
+	is right, we just need to show the base physical mappings are the same for different 
+	virtual address. Examples are here:
+
+		K> showmappings 0xf0000000
+		0xf0000000: mapped to physical page at address 0x00000000
+	     	Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+		K> showmappings 0xf0001000
+		0xf0001000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+	
+	Without PTE_PS set, virtual address 0xf0000000 and 0xf0001000 are supposed to be mapped
+	to different physical address. Here we can see they are both mapped to 0x00000000.
+
+*****************************************************************************************************
 Challenge 2: Monitor commands extension
 
-	I add two new files which are memutil.h and memutil.c to define memory mangement functio-
-	ns.
+	I add two new files which are 'memutil.h' and 'memutil.c' in kern/ to define memory mangement 
+	commands.
 
-	showmappings: show the physical mappings of given virtual addresses
-		Usage: showmappings [virtual address] ...
-		Output: if the virtual address is not mapped into physical page physical, then just
-				output no mapping. Otherwise, show the page address and permissions.
+	showmappings: show the physical page mappings of given virtual addresses
+
+		USAGE: showmappings virtual_address ...
+
+		OUTPUT: if the virtual address is not mapped into physical page physical, then just output no 
+				mapping. Otherwise, show the page physical address and permissions.
 
 		Use pgdir_walk in pmap.c
 
-	mapping_chmod: explicitly set & clear any mapping in the current address space
-		Usage: mapping_chmod [+Perm] [-Perm] virtual address
-		Return : 0 success, 1 error
-				 For any wrong input or no mapping of given virtual address, the function
-				 return 1
+		TEST:
+
+		K> showmappings 0xf0000000 0xf0001000
+		0xf0000000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+	 	0xf0001000: mapped to physical page at address 0x00000000
+			 Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+		K> showmappings 0x00010000
+		0x00010000: currently has no mapping
+
+
+	mapping_chmod: explicitly set & clear the permissions of any mapping in the current address space
+
+		USAGE: mapping_chmod [+Perm] [-Perm] address
+	                   +Perm  add permission to the page mapping of address
+	                   -Perm  remove permission from the page mapping of address
+	                    perm  w    --- read and write
+	                          u    --- user level access
+                              pwt  --- page level write through
+                              pcd  --- page level cache disable
+                              a    --- accessed
+						      d    --- dirty
+      				          mbz  --- bits must be zero
+                     address  hexdecimal format like 0xffffffff
+
 		Allowed permission: PTE_W, PTE_U, PTE_PWT, PTE_PCD, PTE_A, PTE_D, PTE_MBZ
 
-	memdump: dump the memory contents
-		Usage: memdump [-p] [range] address
-				  -p  dump the physical memory
-				  default range is 4
-		Output: show every byte from [address, address + range)
+		OUTPUT: if the change succeed, the function returns 0. Otherwise the function returns 1.
 
+		TEST:
+
+		K> showmappings 0xf0000000
+		0xf0000000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_A PTE_D PTE_PS PTE_MBZ
+
+	    K> mapping_chmod +u 0xf0000000
+		K> showmappings 0xf0000000
+		0xf0000000: mapped to physical page at address 0x00000000
+		     Flags: PTE_W PTE_U PTE_A PTE_D PTE_PS PTE_MBZ
+
+
+	memdump: dump the memory contents
+
+		USAGE: memdump [-p] [range] address
+				    -p  dump the physical memory contents
+				 range  the range of memory in bytes start from address
+			   address  starting address in hexdecimal format like 0x00000000
+
+		OUTPUT: show every byte content from [address, address + range). If it is to dump physical
+				memory, first check if each address in the range is out of physical memory range, 
+				and then use KADDR macro to convert the address. If it is to dump virtual address,
+				then just use pgdir_walk in pmap.c to get the page table entry and see if it has
+				been mapped. If the address is out of range or not mapped, just output zero.
+
+		TEST:
+
+		K> memdump -p 16 0x00100000
+		       Memdump:
+		    0x00100000: 02 b0 ad 1b
+		    0x00100004: 03 00 00 00
+		    0x00100008: fb 4f 52 e4
+
+	    K> memdump 16 0xf0100000
+	           Memdump:
+	        0xf0100000: 02 b0 ad 1b
+		    0xf0100004: 03 00 00 00
+		    0xf0100008: fb 4f 52 e4
+
+
+*****************************************************************************************************
 Challenge 3:
 
+*****************************************************************************************************
 Challenge 4:
 
-Challenge 5: add alloc_page, page_status, free_page commands
+*****************************************************************************************************
+Challenge 5: Extend the JOS kernel monitor with commands to allocate and free pages explicitly
 
-	These three functions are defined in memutil.h and memutil.c
+	Add alloc_page, page_status and free_page in memutil.c to allocate and free pages in monitor. The
+	allocated_page_list stores all the physical pages allocated by alloc_page command.
 
-	alloc_page: alloc a page of 4KB
+	alloc_page: alloc a physical page of 4KB
+
+		USAGE: alloc_page
+
+		OUTPUT: The function returns 0 if allocation succeeds and outputs the page's physical address.
+				The new allocated page will be put into allocated_page_list. The function returns 1 
+				if no memory available.
+
+		TEST:
+
+		K> alloc_page -h
 		Usage: alloc_page
-		Return: 1 --> no free memory available
-				0 --> success, and output new allocated page's physical address
+		K> alloc_page
+		    New page: 0x40fe000
+		K> alloc_page
+		    New page: 0x40fb000
 
 	page_status: show the physical page status given page's physcial address
-		Usage: page_status [address]
-			   with 0 argument, page_status show all the pages allocated by alloc_page
+
+		USAGE: page_status [-a | address]
+				-a  show all the physical pages allocated by alloc_page
+		   address  physical page address
+
+		OUTPUT: the function outputs the physical page status given the page's physical address.
+				With '-a' option, the function outputs all the pages allocated by alloc_page
+				command.
+
+		TEST:
+
+		K> page_status
+		Usage: page_status [-a | address]
+				-a  show all the physical pages allocated by alloc_page
+		   address  physical page address
+		K> page_status -a
+			No pages allocated by alloc_page currently
+		K> alloc_page
+			New page: 0x40fe000
+		K> alloc_page
+			New page: 0x40fb000
+		K> page_status -a
+			Page 0x040fb000 is allocated by alloc_page
+			Page 0x040fe000 is allocated by alloc_page
+		K> page_status 0x040fb000
+			Page 0x040fb000 is allocated by alloc_page
+		K> page_status 0x00000000
+			Page 0x00000000 is allocated by kernel, cannot be freed
+
 
 	free_page: free the allocated page given page's physical address
-		Usage: free_page address
+
+		USAGE: free_page [-a | address]
+				-a  free all the physical pages allocated by alloc_page
+		   address  physical page address
+
+		OUTPUT: If the free succeeds, output the freed page address. Removing the page allocated
+				by kernel is prohibited.
+
+		TEST:
+
+		K> free_page -a
+			No allocated pages by alloc_page
+		K> alloc_page
+			New page: 0x40fe000
+		K> alloc_page
+			New page: 0x40fb000
+		K> alloc_page
+			New page: 0x40fa000
+		K> free_page 0x40fb000
+			Free page: 0x040fb000
+		K> free_page -a
+			Free page: 0x040fa000
+			Free page: 0x040fe000
+		K> free_page 0x00000
+			Cannot free page: 0x00000000
+			This page is used by the kernel
+

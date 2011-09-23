@@ -26,18 +26,20 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 	uint32_t va, len;
 
 	if (argc == 1){
-		cprintf("Usage: showmappings [virtual address]\n");
+		cprintf("Usage: showmappings virtual_address ...\n");
+		cprintf("    virtual_address must be hexdecimal format like 0x00000000\n");
 		return 1;
 	}
 
 	for (i = 1; i < argc; i++){
-		if (atoh(argv[i], &va) == 1 && atoi(argv[i], &va) == 1){
-			cprintf("Error address format: %s\n", argv[i]);
-			continue;
+		if (atoh(argv[i], &va) == 1){ //&& atoi(argv[i], &va) == 1)
+			cprintf("Error address format for argument %d: %s\n", argv[i], i);
+			return 1;
 		}
+
 		pte_t *entry = pgdir_walk(boot_pgdir, (void *)va, 0);
 		if (entry == NULL){
-			cprintf("%08x: currently has no mapping\n", va);
+			cprintf("0x%08x: currently has no mapping\n\n", va);
 			continue;
 		}
 		cprintf("0x%08x: mapped to physical page at address 0x%08x\n", va, PTE_ADDR(*entry));
@@ -211,12 +213,12 @@ mon_mapping_chmod(int argc, char **argv, struct Trapframe *tf)
 int 
 mon_memdump(int argc, char **argv, struct Trapframe *tf)
 {
-
+	// arguments check
 	if (argc == 1 || argc > 4){
-		cprintf("Usage: memdump [-p] [number] <address>\n");
-		cprintf("         -p  dump the physical memory contents\n");
-		cprintf("     number  the range of memory in bytes start from <address>\n");
-		cprintf("    address  hexdecimal format\n");
+		cprintf("Usage: memdump [-p] [range] address\n");
+		cprintf("            -p  dump the physical memory contents\n");
+		cprintf("         range  the range of memory in bytes start from address\n");
+		cprintf("       address  starting address in hexdecimal format like 0x00000000\n");
 		return 1;
 	}
 
@@ -232,18 +234,18 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 			return 1;
 		}
 		if (atoh(argv[1], &address) == 1){
-			cprintf("Error address format, must be hexdecimal\n");
+			cprintf("Error address format. It must be hexdecimal like 0x00000000\n");
 			return 1;
 		}
 	} else if (argc == 3){
 		if (strcmp(argv[1], "-p") == 0){
 			physical = 1;
-		} else if (atoi(argv[1], (uint32_t *)&range) == 1){
+		} else if (atoi(argv[1], (uint32_t *)&range) == 1 && atoh(argv[1], (uint32_t *)&range) == 1){
 			cprintf("Unknown number format\n");
 			return 1;
 		}
 		if (atoh(argv[2], &address) == 1){
-			cprintf("Error address format, must be hexdecimal\n");
+			cprintf("Error address format. It must be hexdecimal\n");
 			return 1;
 		}
 
@@ -259,7 +261,7 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 			return 1;
 		}
 		if (atoh(argv[3], &address) == 1){
-			cprintf("Error address format, must be hexdecimal\n");
+			cprintf("Error address format. It must be hexdecimal\n");
 			return 1;
 		}
 	}
@@ -268,26 +270,33 @@ mon_memdump(int argc, char **argv, struct Trapframe *tf)
 	for (i = 0; i < range; i += 4){
 		cprintf("    0x%08x:", address + i);
 		for (j = 0; j < 4; j++){
+			// physical address option is set
 			if (physical){
+
 				if ((physaddr_t)(address + i + j) >= max_physaddr){
 					a = NULL;
+				} else {
+					a = (void *)KADDR(address + i + j);
 				}
 
-				a = (void *)KADDR(address + i + j);
 			} else {
+
 				entry = pgdir_walk(boot_pgdir, (void *)(address + i + j), 0);
 
 				if (entry == NULL){
 					a = NULL;
 				} else {
+					// PTE_PS bit is set
 					if (*entry & PTE_PS){
 						a = KADDR((PDX(*entry) << PDXSHIFT) | ((address + i + j) & 0x3fffff));
 					} else {
 						a = KADDR((PTE_ADDR(*entry) | ((address + i + j) & 0xfff)));
 					}
+
 				}
 			}
 
+			// output
 			if (a != NULL){
 				ch = *((char *)a);
 				cprintf(" %02x", ch);
@@ -316,6 +325,11 @@ mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
 		LIST_INIT(&allocated_page_list);
 	}
 
+	if (argc != 1){
+		cprintf("Usage: alloc_page\n");
+		return 1;
+	}
+
 	if (page_alloc(&pp) != 0){
 		cprintf("No free memory available\n");
 		return 1;
@@ -324,7 +338,7 @@ mon_alloc_page(int argc, char **argv, struct Trapframe *tf)
 	pp->pp_ref = 1;
 	LIST_INSERT_HEAD(&allocated_page_list, pp, pp_link);
 
-	cprintf("\tNew page: 0x%x\n", page2pa(pp));
+	cprintf("    New page: 0x%x\n", page2pa(pp));
 	return 0;
 }
 
@@ -335,11 +349,18 @@ mon_page_status(int argc, char **argv, struct Trapframe *tf)
 	struct Page *pp, *var;
 	physaddr_t address;
 
-	if (argc == 1){
+	if (argc == 1 || argc > 2){
+		cprintf("Usage: page_status [-a | address]\n");
+		cprintf("        -a  show all the physical pages allocated by alloc_page\n");
+		cprintf("   address  physical page address\n");
+		return 1;
+	}
+
+	if (strcmp(argv[1], "-a") == 0){
 		int empty = 1;
 		LIST_FOREACH(var, &allocated_page_list, pp_link){
 			empty = 0;
-			cprintf("    Ref %2u allocated by alloc_page\n", var->pp_ref);
+			cprintf("    Page 0x%08x is allocated by alloc_page\n", page2pa(var));
 		}
 
 		if (empty){
@@ -356,9 +377,9 @@ mon_page_status(int argc, char **argv, struct Trapframe *tf)
 	pp = pa2page(address);
 
 	if (pp->pp_ref == 0){
-		cprintf("    Ref %2u free\n", pp->pp_ref);
+		cprintf("    Page 0x%08x is free\n", page2pa(pp));
 	} else {
-		cprintf("    Ref %2u allocated ", pp->pp_ref);
+		cprintf("    Page 0x%08x is allocated ", page2pa(pp));
 		LIST_FOREACH(var, &allocated_page_list, pp_link){
 			if (var == pp){
 				break;
@@ -384,7 +405,15 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 	struct Page *pp, *var = NULL;
 	physaddr_t address;
 	int inAlloc = 0;
-	if (argc == 1){
+
+	if (argc == 1 || argc > 2){
+		cprintf("Usage: free_page [-a | address]\n");
+		cprintf("    	 -a  free all the pages allocated by alloc_page\n");
+		cprintf("   address  free the page whose physical address is 'address'\n");
+		return 1;
+	}
+
+	if (strcmp(argv[1], "-a") == 0){
 		int empty = 1;
 
 		while (!LIST_EMPTY(&allocated_page_list)){
@@ -392,13 +421,13 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 			pp = LIST_FIRST(&allocated_page_list);
 			LIST_REMOVE(LIST_FIRST(&allocated_page_list), pp_link);
 
-			cprintf("    Free page: 0x%x\n", page2pa(pp));
+			cprintf("    Free page: 0x%08x\n", page2pa(pp));
 
 			page_decref(pp);
 		}
 
 		if (empty){
-			cprintf("    No allocated pages\n");
+			cprintf("    No allocated pages by alloc_page\n");
 			return 1;
 		}
 		return 0;
@@ -418,7 +447,7 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 	}
 
 	if (var == NULL){
-		cprintf("    Cannot free page: 0x%x\n", address);
+		cprintf("    Cannot free page: 0x%08x\n", address);
 		if (pp->pp_ref == 0){
 			cprintf("    This page is already in free list\n");
 		} else {
@@ -428,7 +457,7 @@ mon_free_page(int argc, char **argv, struct Trapframe *tf)
 	}
 
 	LIST_REMOVE(var, pp_link);
-	cprintf("    Free page: 0x%x\n", page2pa(var));
+	cprintf("    Free page: 0x%08x\n", page2pa(var));
 	page_decref(var);
 
 	return 0;
