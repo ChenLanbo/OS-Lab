@@ -81,6 +81,9 @@ env_init(void)
 		envs[i].env_id = 0;
 		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
 	}
+
+	// Debug info
+	cprintf("env_init succeeds\n");
 }
 
 //
@@ -154,6 +157,9 @@ env_setup_vm(struct Env *e)
 	// different permissions.
 	e->env_pgdir[PDX(VPT)]  = e->env_cr3 | PTE_P | PTE_W;
 	e->env_pgdir[PDX(UVPT)] = e->env_cr3 | PTE_P | PTE_U;
+
+	// Debug info
+	cprintf("env_setup_vm succeeds\n");
 
 	return 0;
 }
@@ -240,11 +246,14 @@ segment_alloc(struct Env *e, void *va, size_t len)
 
 	for (i = lbound; i < rbound; i += PGSIZE){
 		if (page_alloc(&p) == -E_NO_MEM){
-			panic("No memory available\n");
+			panic("No memory available");
 		}
 
 		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W);
 	}
+
+	// Debug info
+	cprintf("segment_alloc succeeds\n");
 }
 
 //
@@ -301,11 +310,75 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+	pte_t *entry;
+	struct Proghdr *ph, *eph;
+	uint32_t i, lbound, rbound, dst, src;
+
+	// program's entry point
+	e->env_tf.tf_eip = ((struct Elf *)binary)->e_entry;
+
+	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
+	eph = ph + ((struct Elf *)binary)->e_phnum;
+
+	for ( ; ph < eph; ph++){
+		// loadable
+		if (ph->p_type == ELF_PROG_LOAD){
+			segment_alloc(e, (void *)(ph->p_va), ph->p_memsz);
+
+			// zero allocated memory
+			lbound = ROUNDDOWN((uint32_t)ph->p_va, PGSIZE);
+			rbound = ROUNDUP((uint32_t)ph->p_va + ph->p_memsz, PGSIZE);
+			for (i = lbound; i < rbound; i += PGSIZE){
+				entry = pgdir_walk(e->env_pgdir, (void *)i, 0);
+
+				memset(page2kva(pa2page(PTE_ADDR(*entry))), 0, PGSIZE);
+			}
+
+			lbound = ROUNDUP((uint32_t)ph->p_va, PGSIZE);
+			rbound = ROUNDDOWN((uint32_t)ph->p_va + ph->p_filesz, PGSIZE);
+
+			if (rbound < lbound){
+				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 0);
+				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (ph->p_va & 0xfff));
+				src = (uint32_t)binary + ph->p_offset;
+
+				memmove((void *)dst, (void *)src, ph->p_filesz);
+			} else {
+				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 0);
+				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (ph->p_va & 0xfff));
+				src = (uint32_t)binary + ph->p_offset;
+
+				if (lbound - ph->p_va){
+					memmove((void *)dst, (void *)src, lbound - ph->p_va);
+				}
+
+				src += lbound - ph->p_va;
+
+				for (i = lbound; i < rbound; i += PGSIZE, src += PGSIZE){
+					entry = pgdir_walk(e->env_pgdir, (void *)i, 0);
+					dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (i & 0xfff));
+					// memset((void *)dst, 0, PGSIZE);
+					memmove((void *)dst, (void *)src, PGSIZE);
+				}
+
+				entry = pgdir_walk(e->env_pgdir, (void *)rbound, 0);
+				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (rbound & 0xfff));
+
+				if (ph->p_va + ph->p_filesz - rbound){
+					memmove((void *)dst, (void *)src, (ph->p_va + ph->p_filesz - rbound));
+				}
+			}
+		}
+	}
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	segment_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+	
+	// Debug info
+	cprintf("load_icode succeeds\n");
 }
 
 //
@@ -319,6 +392,18 @@ void
 env_create(uint8_t *binary, size_t size)
 {
 	// LAB 3: Your code here.
+	int r;
+	struct Env *e;
+
+	if ((r = env_alloc(&e, 0)) < 0){
+		panic("env_alloc: %e", r);
+		return ;
+	}
+
+	load_icode(e, binary, size);
+
+	// Debug info
+	cprintf("env_create succeeds\n");
 }
 
 //
@@ -407,6 +492,16 @@ env_pop_tf(struct Trapframe *tf)
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
+int 
+ffff()
+{
+	int i = 0, sum = 0;
+	for (i = 0; i < 10; i++){
+		sum += i;
+	}
+	return sum;
+}
+
 //
 // Context switch from curenv to env e.
 // Note: if this is the first call to env_run, curenv is NULL.
@@ -431,6 +526,26 @@ env_run(struct Env *e)
 	
 	// LAB 3: Your code here.
 
-	panic("env_run not yet implemented");
+	// context switch
+	int mark;
+
+	curenv = e;
+
+	curenv->env_runs = curenv->env_runs + 1;
+
+	cprintf("Loading new cr3\n");
+
+	mark = ffff();
+
+	lcr3((uint32_t)curenv->env_cr3);
+
+	cprintf("Loading new cr3 done\n");
+
+
+	env_pop_tf(&(curenv->env_tf));
+
+	cprintf("env_pop_tf done\n");
+
+	// panic("env_run not yet implemented");
 }
 
