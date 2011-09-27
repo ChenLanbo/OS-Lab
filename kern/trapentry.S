@@ -41,9 +41,81 @@
  * Lab 3: Your code here for generating entry points for the different traps.
  */
 
+	/* divide error */
+	TRAPHANDLER_NOEC(trap_divide, T_DIVIDE) 
 
+	/* debug */
+	TRAPHANDLER_NOEC(trap_debug, T_DEBUG)
+
+	/* non-maskable interrupt */
+	TRAPHANDLER_NOEC(trap_nmi, T_NMI)
+
+	/* breakpoint */
+	TRAPHANDLER_NOEC(trap_brkpt, T_BRKPT)
+
+	/* overflow */
+	TRAPHANDLER_NOEC(trap_oflow, T_OFLOW)
+
+	/* bounds check */
+	TRAPHANDLER_NOEC(trap_bound, T_BOUND)
+
+	/* illegal opcode */
+	TRAPHANDLER_NOEC(trap_illop, T_ILLOP)
+
+	/* device not available */
+	TRAPHANDLER_NOEC(trap_device, T_DEVICE)
+
+	/* Error code: 0, double fault*/
+	TRAPHANDLER(trap_dblflt, T_DBLFLT)
+
+	/* Error code: segment selector index, invalid task switch segment*/
+	TRAPHANDLER(trap_tss, T_TSS)
+
+	/* Error code: segment selector index, segment not present*/
+	TRAPHANDLER(trap_segnp, T_SEGNP)
+
+	/* stack */
+	TRAPHANDLER(trap_stack, T_STACK)
+
+	/* general protection fault */
+	TRAPHANDLER(trap_gpflt, T_GPFLT)
+
+	/* page fault */
+	TRAPHANDLER(trap_pgflt, T_PGFLT)
+
+	/* floating point error */
+	TRAPHANDLER_NOEC(trap_fperr, T_FPERR)
+
+	/* alignment check */
+	TRAPHANDLER_NOEC(trap_align, T_ALIGN)
+
+	/* machine check */
+	TRAPHANDLER_NOEC(trap_mchk, T_MCHK)
+
+	/* SIMD floating point error */
+	TRAPHANDLER_NOEC(trap_simderr, T_SIMDERR)
+
+	/* syscall */
+	TRAPHANDLER_NOEC(trap_syscall, T_SYSCALL)
 
 /*
  * Lab 3: Your code here for _alltraps
+ *        The cpu has pushed old SS, old ESP, old, EFLAGS, old cs, old EIP onto the stack
+ *        Do I call IRET to return ?
  */
 
+_alltraps:
+
+	pushw $0
+	pushw %ds
+	pushw $0
+	pushw %es
+	pushal
+
+	movl $GD_KD, %eax
+	movw %ax, %ds
+	movw %ax, %es
+
+	pushl %esp
+
+	call trap

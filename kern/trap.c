@@ -52,6 +52,26 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+// interrupt handler function declaration
+extern void trap_divide(struct Trapframe *);
+extern void trap_debug(struct Trapframe *);
+extern void trap_nmi(struct Trapframe *);
+extern void trap_brkpt(struct Trapframe *);
+extern void trap_oflow(struct Trapframe *);
+extern void trap_bound(struct Trapframe *);
+extern void trap_illop(struct Trapframe *);
+extern void trap_device(struct Trapframe *);
+extern void trap_dblflt(struct Trapframe *);
+extern void trap_tss(struct Trapframe *);
+extern void trap_segnp(struct Trapframe *);
+extern void trap_stack(struct Trapframe *);
+extern void trap_gpflt(struct Trapframe *);
+extern void trap_pgflt(struct Trapframe *);
+extern void trap_fperr(struct Trapframe *);
+extern void trap_align(struct Trapframe *);
+extern void trap_mchk(struct Trapframe *);
+extern void trap_simderr(struct Trapframe *);
+extern void trap_syscall(struct Trapframe *);
 
 void
 idt_init(void)
@@ -59,6 +79,29 @@ idt_init(void)
 	extern struct Segdesc gdt[];
 	
 	// LAB 3: Your code here.
+	// SETGATE(gate, istrap, sel, off, dpl)
+
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_debug, 3);
+	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, trap_brkpt, 0);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, trap_oflow, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, trap_bound, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, trap_illop, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, trap_device, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, trap_dblflt, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, trap_tss, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, trap_segnp, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, trap_stack, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, trap_gpflt, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, trap_pgflt, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, trap_fperr, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, trap_align, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, trap_mchk, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
+
+	// SETGATE(idt[T_SYSCALL], 0, GD_KD, trap_syscall, 0);
+
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -111,7 +154,6 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-	
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -156,6 +198,78 @@ trap(struct Trapframe *tf)
 	env_run(curenv);
 }
 
+// interrupt and trap handlers
+
+// Divide error fault handler
+void
+divide_error_handler(struct Trapframe *tf)
+{
+	cprintf("TRAP frame at %08x\n", (uint32_t)tf);
+	cprintf("  trap %08x %s\n", tf->tf_trapno, trapname(tf->tf_trapno));
+	cprintf("  eip  %08x\n", tf->tf_eip);
+	cprintf("  ss   %08x\n", tf->tf_ss);
+
+}
+
+void
+debug_exception_handler(struct Trapframe *tf)
+{
+}
+
+void
+nonmaskable_interrupt_handler(struct Trapframe *tf)
+{
+}
+
+void
+breakpoint_handler(struct Trapframe *tf)
+{
+}
+
+void
+overflow_handler(struct Trapframe *tf)
+{
+}
+
+void
+bounds_check_handler(struct Trapframe *tf)
+{
+}
+
+void 
+illegal_opcode_handler(struct Trapframe *tf)
+{
+}
+
+void 
+device_not_available_handler(struct Trapframe *tf)
+{
+}
+
+void
+double_fault_handler(struct Trapframe *tf)
+{
+}
+
+void
+invalid_task_switch_segment_handler(struct Trapframe *tf)
+{
+}
+
+void
+segment_not_present_handler(struct Trapframe *tf)
+{
+}
+
+void
+stack_exception_handler(struct Trapframe *tf)
+{
+}
+
+void
+general_protection_fault_handler(struct Trapframe *tf)
+{
+}
 
 void
 page_fault_handler(struct Trapframe *tf)
@@ -179,3 +293,27 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+void
+floating_point_error_handler(struct Trapframe *tf)
+{
+}
+
+void
+aligment_check_handler(struct Trapframe *tf)
+{
+}
+
+void
+machine_check_handler(struct Trapframe *tf)
+{
+}
+
+void
+simd_floating_point_error_handler(struct Trapframe *tf)
+{
+}
+
+void
+system_call_handler(struct Trapframe *tf)
+{
+}
