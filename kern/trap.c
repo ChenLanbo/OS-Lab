@@ -89,8 +89,8 @@ idt_init(void)
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_debug, 3);
 	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, trap_brkpt, 0);
-	SETGATE(idt[T_OFLOW], 0, GD_KT, trap_oflow, 0);
+	SETGATE(idt[T_BRKPT], 1, GD_KT, trap_brkpt, 3);
+	SETGATE(idt[T_OFLOW], 1, GD_KT, trap_oflow, 0);
 	SETGATE(idt[T_BOUND], 0, GD_KT, trap_bound, 0);
 	SETGATE(idt[T_ILLOP], 0, GD_KT, trap_illop, 0);
 	SETGATE(idt[T_DEVICE], 0, GD_KT, trap_device, 0);
@@ -105,7 +105,8 @@ idt_init(void)
 	SETGATE(idt[T_MCHK], 0, GD_KT, trap_mchk, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
 
-	SETGATE(idt[T_SYSCALL], 0, GD_KD, trap_syscall, 0);
+	// syscall should be trap,
+	SETGATE(idt[T_SYSCALL], 1, GD_KD, trap_syscall, 0);
 
 
 	// Setup a TSS so that we get the right stack
@@ -160,6 +161,15 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 
+	if (tf->tf_trapno == T_BRKPT){
+		cprintf("*** trap %08x %s ***\n", tf->tf_trapno, trapname(tf->tf_trapno));
+		monitor(tf);
+	}
+
+	if (tf->tf_trapno == T_PGFLT){
+		page_fault_handler(tf);
+	}
+
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -209,11 +219,6 @@ trap(struct Trapframe *tf)
 void
 divide_error_handler(struct Trapframe *tf)
 {
-	cprintf("TRAP frame at %08x\n", (uint32_t)tf);
-	cprintf("  trap %08x %s\n", tf->tf_trapno, trapname(tf->tf_trapno));
-	cprintf("  eip  %08x\n", tf->tf_eip);
-	cprintf("  ss   %08x\n", tf->tf_ss);
-
 }
 
 void
