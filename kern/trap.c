@@ -73,6 +73,8 @@ extern void trap_mchk(struct Trapframe *);
 extern void trap_simderr(struct Trapframe *);
 extern void trap_syscall(struct Trapframe *);
 
+extern int rambo;
+
 void
 idt_init(void)
 {
@@ -80,6 +82,9 @@ idt_init(void)
 	
 	// LAB 3: Your code here.
 	// SETGATE(gate, istrap, sel, off, dpl)
+
+	// Debug info
+	// cprintf("Rambo %d\n", rambo);
 
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_debug, 3);
@@ -100,7 +105,7 @@ idt_init(void)
 	SETGATE(idt[T_MCHK], 0, GD_KT, trap_mchk, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
 
-	// SETGATE(idt[T_SYSCALL], 0, GD_KD, trap_syscall, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KD, trap_syscall, 0);
 
 
 	// Setup a TSS so that we get the right stack

@@ -119,3 +119,4 @@ _alltraps:
 	pushl %esp
 
 	call trap
+
