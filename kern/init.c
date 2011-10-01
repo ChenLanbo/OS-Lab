@@ -41,6 +41,7 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
+	// cprintf("Create user hello\n");
 	ENV_CREATE(user_hello);
 #endif // TEST*
 

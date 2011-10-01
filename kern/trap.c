@@ -106,7 +106,8 @@ idt_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
 
 	// syscall should be trap,
-	SETGATE(idt[T_SYSCALL], 1, GD_KD, trap_syscall, 0);
+	// SETCALLGATE(idt[T_SYSCALL], GD_KT, trap_syscall, 0);
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_syscall, 3);
 
 
 	// Setup a TSS so that we get the right stack
@@ -160,14 +161,21 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	int32_t ret;
 
 	if (tf->tf_trapno == T_BRKPT){
-		cprintf("*** trap %08x %s ***\n", tf->tf_trapno, trapname(tf->tf_trapno));
+		// cprintf("*** trap %08x %s ***\n", tf->tf_trapno, trapname(tf->tf_trapno));
 		monitor(tf);
 	}
 
 	if (tf->tf_trapno == T_PGFLT){
 		page_fault_handler(tf);
+	}
+
+	if (tf->tf_trapno == T_SYSCALL){
+		ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+		tf->tf_regs.reg_eax = ret;
+		return ;
 	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
@@ -193,6 +201,7 @@ trap(struct Trapframe *tf)
 	assert(!(read_eflags() & FL_IF));
 
 	cprintf("Incoming TRAP frame at %p\n", tf);
+	// print_trapframe(tf);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -214,73 +223,6 @@ trap(struct Trapframe *tf)
 }
 
 // interrupt and trap handlers
-
-// Divide error fault handler
-void
-divide_error_handler(struct Trapframe *tf)
-{
-}
-
-void
-debug_exception_handler(struct Trapframe *tf)
-{
-}
-
-void
-nonmaskable_interrupt_handler(struct Trapframe *tf)
-{
-}
-
-void
-breakpoint_handler(struct Trapframe *tf)
-{
-}
-
-void
-overflow_handler(struct Trapframe *tf)
-{
-}
-
-void
-bounds_check_handler(struct Trapframe *tf)
-{
-}
-
-void 
-illegal_opcode_handler(struct Trapframe *tf)
-{
-}
-
-void 
-device_not_available_handler(struct Trapframe *tf)
-{
-}
-
-void
-double_fault_handler(struct Trapframe *tf)
-{
-}
-
-void
-invalid_task_switch_segment_handler(struct Trapframe *tf)
-{
-}
-
-void
-segment_not_present_handler(struct Trapframe *tf)
-{
-}
-
-void
-stack_exception_handler(struct Trapframe *tf)
-{
-}
-
-void
-general_protection_fault_handler(struct Trapframe *tf)
-{
-}
-
 void
 page_fault_handler(struct Trapframe *tf)
 {
@@ -291,6 +233,9 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Handle kernel-mode page faults.
 	
+	if ((tf->tf_cs & 3) == 0){
+		panic("kernel page fault");
+	}
 	// LAB 3: Your code here.
 
 	// We've already handled kernel-mode exceptions, so if we get here,
@@ -303,27 +248,3 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
-void
-floating_point_error_handler(struct Trapframe *tf)
-{
-}
-
-void
-aligment_check_handler(struct Trapframe *tf)
-{
-}
-
-void
-machine_check_handler(struct Trapframe *tf)
-{
-}
-
-void
-simd_floating_point_error_handler(struct Trapframe *tf)
-{
-}
-
-void
-system_call_handler(struct Trapframe *tf)
-{
-}

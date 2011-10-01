@@ -136,6 +136,9 @@ env_setup_vm(struct Env *e)
 		(e->env_pgdir)[i] = boot_pgdir[i];
 	}
 
+	// Here is important, 
+	e->env_pgdir[PDX(UENVS)] |= PTE_U;
+
 	// now setup the kernel portion of the new environment's address space
 	// UPAGES
 	// n = ROUNDUP(npage * sizeof(struct Page), PGSIZE);
@@ -314,18 +317,21 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	struct Proghdr *ph, *eph;
 	uint32_t i, lbound, rbound, dst, src;
 
-	// program's entry point
+	// Load program's entry point
 	e->env_tf.tf_eip = ((struct Elf *)binary)->e_entry;
 
+	// Get program header
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
 	eph = ph + ((struct Elf *)binary)->e_phnum;
 
+	// Load ELF
 	for ( ; ph < eph; ph++){
 		// loadable
 		if (ph->p_type == ELF_PROG_LOAD){
+			// Allocate segment
 			segment_alloc(e, (void *)(ph->p_va), ph->p_memsz);
 
-			// zero allocated memory
+			// Zero allocated memory
 			lbound = ROUNDDOWN((uint32_t)ph->p_va, PGSIZE);
 			rbound = ROUNDUP((uint32_t)ph->p_va + ph->p_memsz, PGSIZE);
 			for (i = lbound; i < rbound; i += PGSIZE){
@@ -399,6 +405,8 @@ env_create(uint8_t *binary, size_t size)
 		panic("env_alloc: %e", r);
 		return ;
 	}
+
+	cprintf("env_create pid %u\n", e->env_id);
 
 	load_icode(e, binary, size);
 
@@ -492,16 +500,6 @@ env_pop_tf(struct Trapframe *tf)
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
-int 
-ffff()
-{
-	int i = 0, sum = 0;
-	for (i = 0; i < 10; i++){
-		sum += i;
-	}
-	return sum;
-}
-
 //
 // Context switch from curenv to env e.
 // Note: if this is the first call to env_run, curenv is NULL.
@@ -527,15 +525,12 @@ env_run(struct Env *e)
 	// LAB 3: Your code here.
 
 	// context switch
-	int mark;
 
 	curenv = e;
 
 	curenv->env_runs = curenv->env_runs + 1;
 
 	cprintf("Loading new cr3\n");
-
-	mark = ffff();
 
 	lcr3((uint32_t)curenv->env_cr3);
 
