@@ -77,6 +77,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 
 	switch(syscallno){
 		case SYS_cputs:
+			user_mem_assert(curenv, (void *)a1, a2, PTE_U);
 			sys_cputs((char *)a1, a2);
 			return 0;
 			break;

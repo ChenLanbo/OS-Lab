@@ -42,7 +42,9 @@ i386_init(void)
 #else
 	// Touch all you want.
 	// cprintf("Create user hello\n");
-	ENV_CREATE(user_hello);
+	// ENV_CREATE(user_hello);
+	// ENV_CREATE(user_evilhello);
+	ENV_CREATE(user_breakpoint);
 #endif // TEST*
 
 	// We only have one user environment for now, so just run it.

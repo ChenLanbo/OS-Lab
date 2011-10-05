@@ -903,6 +903,45 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here. 
+	uint32_t lbound, rbound, i;
+	pte_t *entry;
+
+	lbound = ROUNDUP((uint32_t)va, PGSIZE);
+	rbound = ROUNDDOWN((uint32_t)va + len, PGSIZE);
+
+	if ((uint32_t)va >= ULIM){
+		user_mem_check_addr = (uintptr_t)va;
+		return -E_FAULT;
+	}
+	entry = pgdir_walk(env->env_pgdir, va, 0);
+	if (entry == NULL || ((*entry) & (perm | PTE_P)) != (perm | PTE_P)){
+		user_mem_check_addr = (uintptr_t)va;
+		return -E_FAULT;
+	}
+
+	if (lbound <= (uint32_t)va + len){
+		for (i = lbound; i <= rbound; i += PGSIZE){
+			if (i >= ULIM){
+				user_mem_check_addr = i;
+				return -E_FAULT;
+			}
+			entry = pgdir_walk(env->env_pgdir, (void *)i, 0);
+			if (entry == NULL || ((*entry) & (perm | PTE_P)) != (perm | PTE_P)){
+				user_mem_check_addr =i;
+				return -E_FAULT;
+			}
+		}
+	} else {
+		if ((uint32_t)va + len >= ULIM){
+			user_mem_check_addr = (uintptr_t)va + len;
+			return -E_FAULT;
+		}
+		entry = pgdir_walk(env->env_pgdir, va + len, 0);
+		if (entry == NULL || ((*entry) & (perm | PTE_P)) != (perm | PTE_P)){
+			user_mem_check_addr = (uintptr_t)va + len;
+			return -E_FAULT;
+		}
+	}
 
 	return 0;
 }
