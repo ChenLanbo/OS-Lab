@@ -87,7 +87,7 @@ idt_init(void)
 	// cprintf("Rambo %d\n", rambo);
 
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
-	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_debug, 3);
+	SETGATE(idt[T_DEBUG], 1, GD_KT, trap_debug, 3);
 	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
 	SETGATE(idt[T_BRKPT], 1, GD_KT, trap_brkpt, 3);
 	SETGATE(idt[T_OFLOW], 1, GD_KT, trap_oflow, 0);
@@ -163,9 +163,20 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	int32_t ret;
 
-	if (tf->tf_trapno == T_BRKPT){
+	if (tf->tf_trapno == T_DEBUG){
+		// Debug info
 		// cprintf("*** trap %08x %s ***\n", tf->tf_trapno, trapname(tf->tf_trapno));
+		// Invoke monitor
 		monitor(tf);
+		return ;
+	}
+
+	if (tf->tf_trapno == T_BRKPT){
+		// Debug info
+		// cprintf("*** trap %08x %s ***\n", tf->tf_trapno, trapname(tf->tf_trapno));
+		// Invoke monitor
+		monitor(tf);
+		return ;
 	}
 
 	if (tf->tf_trapno == T_PGFLT){
@@ -173,15 +184,24 @@ trap_dispatch(struct Trapframe *tf)
 	}
 
 	if (tf->tf_trapno == T_SYSCALL){
-		ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+		ret = syscall(tf->tf_regs.reg_eax, 
+				      tf->tf_regs.reg_edx, 
+					  tf->tf_regs.reg_ecx,
+					  tf->tf_regs.reg_ebx,
+					  tf->tf_regs.reg_edi,
+					  tf->tf_regs.reg_esi);
 		tf->tf_regs.reg_eax = ret;
 		return ;
 	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
+	if (tf->tf_cs == GD_KT){
+		if (tf->tf_trapno == T_DEBUG){
+			return ;
+		}
 		panic("unhandled trap in kernel");
+	}
 	else {
 		env_destroy(curenv);
 		return;
@@ -201,7 +221,6 @@ trap(struct Trapframe *tf)
 	assert(!(read_eflags() & FL_IF));
 
 	cprintf("Incoming TRAP frame at %p\n", tf);
-	// print_trapframe(tf);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -232,7 +251,7 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-	
+	// previlage level = 0
 	if ((tf->tf_cs & 3) == 0){
 		panic("kernel page fault");
 	}

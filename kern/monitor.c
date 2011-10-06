@@ -35,7 +35,11 @@ static struct Command commands[] = {
 	{ "memdump", "Dump memory contents", mon_memdump },
 	{ "alloc_page", "Allocate a page of 4KB", mon_alloc_page},
 	{ "page_status", "Show physical page status", mon_page_status},
-	{ "free_page", "Free allocated pages", mon_free_page}
+	{ "free_page", "Free allocated pages", mon_free_page},
+	// continue
+	{ "continue", "Continue after the breakpoint", mon_continue},
+	{ "si", "single-step program", mon_si}
+	// { "debug", "debug exception", mon_debug}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -114,6 +118,39 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		returnAddress++;
 	}
 	return 0;
+}
+
+// continue after breakpoint
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG){
+		cprintf("Cannot invoke continue, no breakpoint exception invoked\n");
+		return 1;
+	}
+
+	if (tf->tf_eflags & FL_TF){
+		cprintf("Trap Flag set in EFLAGS\n");
+		tf->tf_eflags ^= FL_TF;
+	}
+
+	return -1;
+}
+
+int
+mon_si(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG){
+		cprintf("Cannot invoke si, no breakpoint exception or debug exception invoked\n");
+		return 1;
+	}
+	// Debug info
+	if (tf->tf_eflags & FL_TF){
+		cprintf("Trap Flag set in EFLAGS\n");
+	}
+	tf->tf_eflags |= FL_TF | FL_RF;
+
+	return -1;
 }
 
 /***** Kernel monitor command interpreter *****/

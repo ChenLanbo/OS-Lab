@@ -73,7 +73,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// LAB 3: Your code here.
 	
 	// Debug info
-	cprintf("Syscallno %u: %u %u %u %u %u\n", syscallno, a1, a2, a3, a4, a5);
+	cprintf("Syscallno %x: %x %x %x %x %x\n", syscallno, a1, a2, a3, a4, a5);
 
 	switch(syscallno){
 		case SYS_cputs:

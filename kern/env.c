@@ -525,22 +525,13 @@ env_run(struct Env *e)
 	// LAB 3: Your code here.
 
 	// context switch
-
-	curenv = e;
+	if (curenv != e){
+		curenv = e;
+	}
 
 	curenv->env_runs = curenv->env_runs + 1;
-
-	cprintf("Loading new cr3\n");
-
 	lcr3((uint32_t)curenv->env_cr3);
-
-	cprintf("Loading new cr3 done\n");
-
-
 	env_pop_tf(&(curenv->env_tf));
-
-	cprintf("env_pop_tf done\n");
-
 	// panic("env_run not yet implemented");
 }
 
