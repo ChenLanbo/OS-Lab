@@ -15,6 +15,8 @@
 #include <kern/pmap.h>
 // Lab 2 Challenges
 #include <kern/memutil.h>
+// Lab 3 Challenges: debugger
+#include <kern/debugger.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -120,69 +122,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-// continue after breakpoint
-int
-mon_continue(int argc, char **argv, struct Trapframe *tf)
-{
-	if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG){
-		cprintf("Cannot invoke continue, no breakpoint exception invoked\n");
-		return 1;
-	}
-	uint32_t x;
-	/*asm volatile("movl %%ebp, %1\n\t"
-			: "=r"(x));
-	printf("Kernel esp %08x\n", x);*/
-	asm("movl %%ebp, %0"
-		: "=r"(x)
-	);
-	cprintf("Kernel ebp %08x\n", x);
-
-	if (tf->tf_eflags & FL_TF){
-		cprintf("Trap Flag set in EFLAGS\n");
-		tf->tf_eflags ^= FL_TF;
-	}
-
-	return -1;
-}
-
-int
-mon_si(int argc, char **argv, struct Trapframe *tf)
-{
-	if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG){
-		cprintf("Cannot invoke si, no breakpoint exception or debug exception invoked\n");
-		return 1;
-	}
-	int ret;
-	uint32_t x, itr;
-	uint32_t *returnAddress;
-	struct Eipdebuginfo eipdebuginfo;
-	asm("movl %%ebp, %0"
-		: "=r"(x)
-	);
-	cprintf("Kernel ebp %08x\n", x);
-
-	returnAddress = (uint32_t *)tf->tf_eip;
-
-	if ((ret = debuginfo_eip(*returnAddress, &eipdebuginfo)) == 0)
-	{
-		cprintf("         %s:%d: ", eipdebuginfo.eip_file, eipdebuginfo.eip_line);
-		for (itr = 0; itr < eipdebuginfo.eip_fn_namelen; ++itr)
-		{
-			cprintf("%c", eipdebuginfo.eip_fn_name[itr]);
-		}
-		cprintf("+%u\n", (uint32_t)(*returnAddress) - eipdebuginfo.eip_fn_addr);
-	}
-
-	cprintf("RET %d\n", ret);
-
-	// Debug info
-	if (tf->tf_eflags & FL_TF){
-		cprintf("Trap Flag set in EFLAGS\n");
-	}
-	tf->tf_eflags |= FL_TF | FL_RF;
-
-	return -1;
-}
 
 /***** Kernel monitor command interpreter *****/
 
