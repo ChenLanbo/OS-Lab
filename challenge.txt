@@ -1,3 +1,93 @@
 Name: Lanbo Chen
 ID  : #108079696
 Lab3-b: Challenge Problems
+
+******************************************************************************************
+Exercise 6 Challenge: single-step program
+
+	To enable to single-step user program, we need to set Trap Flag in EFLAGS register.
+	This will generate debug exception after the instruction that follows the POPFD or
+	IRET instruction.
+
+	In kern/ directory, I write debugger.h and debugger.c which define two functions:
+		
+		mon_continue: Continue the program until next breakpoint or to the end.
+					  This function will clear FL_TF flag in tf->tf_eflags
+
+		USAGE: continue
+
+		mon_si		: single-step the program.
+					  This function will set FL_TF and FL_RF flag in tf->tf_eflags.
+					  It will output the name of opcode in tf->tf_eip. Right now,
+					  I don't implement to output arguments of opcodes
+
+		USAGE: si
+
+	TEST:
+
+	To test the program, I modify the user/breakpoint.c like the following:
+
+		asm volatile("int $3");
+		asm volatile("movl $8, %eax");
+		asm volatile("int $3");
+
+	TEST EXAMPLE: 
+	add ENV_CREATE(user_breakpoint) in kern/init.c, and boot the JOS
+
+		#trap frame...
+		K> si
+		Instruction: B8 MOV
+		#trap frame...
+		K> si
+		Instruction: CC INT 3
+		#trap frame...
+		K> si
+		Instruction: 5D POP
+		#trap frame...
+		K> si
+		Instruction: C3 RETN 
+		#trap frame...
+		K> si
+		Instruction: E8 CALL 
+		#trap frame...
+		K> si
+		Instruction: 55 PUSH
+		#trap frame...
+		K> si
+		Instruction: 89 MOV r/m1
+
+	if we type 'continue' at the first breakpoint
+
+		#breakpoint trap frame...
+		K> continue
+		Incoming TRAP frame at 0xefbfffbc
+		Welcome to the JOS kernel monitor!
+		Type 'help' for a list of commands.
+		TRAP frame at 0xf01b2000
+		edi  0x00000000
+		esi  0x00000000
+		ebp  0xeebfdfd0
+		oesp 0xefbfffdc
+		ebx  0x00000000
+		edx  0x00000000
+		ecx  0x00000000
+		eax  0x00000008
+		es   0x----0023
+		ds   0x----0023
+		trap 0x00000003 Breakpoint
+		err  0x00000000
+		eip  0x0080003e
+		cs   0x----001b
+		flag 0x00000046
+		esp  0xeebfdfd0
+		ss   0x----0023
+		K> continue
+		Incoming TRAP frame at 0xefbfffbc
+		Syscallno 3: 0 0 0 0 0
+		[00001000] exiting gracefully
+		[00001000] free env 00001000
+		Destroyed the only environment - nothing more to do!
+		Welcome to the JOS kernel monitor!
+		Type 'help' for a list of commands.
+
+******************************************************************************************

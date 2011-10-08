@@ -273,13 +273,17 @@ static const char * const opcnames[] = {
 int
 mon_continue(int argc, char **argv, struct Trapframe *tf)
 {
+	if (tf == NULL){
+		cprintf("Cannot invoke si, no breakpoint exception or debug exception invoked\n");
+		return 1;
+	}
 	if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG){
 		cprintf("Cannot invoke continue, no breakpoint exception invoked\n");
 		return 1;
 	}
-	uint32_t opcode;
-	pte_t *entry;
-	uint32_t address;
+	// uint32_t opcode;
+	// pte_t *entry;
+	// uint32_t address;
 
 	// Debug info
 	// asm("movl %%ebp, %0"
@@ -287,6 +291,7 @@ mon_continue(int argc, char **argv, struct Trapframe *tf)
 	// );
 	// cprintf("Kernel ebp %08x\n", x);
 
+	// Clear FL_TF flag in tf->tf_eflags
 	if (tf->tf_eflags & FL_TF){
 		cprintf("Trap Flag set in EFLAGS\n");
 		tf->tf_eflags ^= FL_TF;
@@ -298,6 +303,10 @@ mon_continue(int argc, char **argv, struct Trapframe *tf)
 int
 mon_si(int argc, char **argv, struct Trapframe *tf)
 {
+	if (tf == NULL){
+		cprintf("Cannot invoke si, no breakpoint exception or debug exception invoked\n");
+		return 1;
+	}
 	if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG){
 		cprintf("Cannot invoke si, no breakpoint exception or debug exception invoked\n");
 		return 1;
@@ -306,28 +315,20 @@ mon_si(int argc, char **argv, struct Trapframe *tf)
 	pte_t *entry;
 	uint32_t address;
 
-	// Debug info
-	// asm("movl %%ebp, %0"
-	//	: "=r"(x)
-	// );
-	// cprintf("Kernel ebp %08x\n", x);
-
+	// Get the page table entry of tf_eip, 
+	// because we in kernel mode
 	address = tf->tf_eip;
 	entry = pgdir_walk(curenv->env_pgdir, (void *)address, 0);
-
+	// Debug
 	if (entry == NULL){
 		panic("Bad address in gdb");
 	}
 
 	// Debug info
-	// cprintf("Entry addr %x\n", PTE_ADDR(*entry));
-
 	address = (uint32_t)KADDR(PTE_ADDR(*entry)) | (address & 0xfff);
 
 	// Debug info
-	// cprintf("Entry addr %x\n", address);
-	// cprintf("First byte of eip %x: %x\n", tf->tf_eip, opcode);
-
+	// print the instruction name
 	opcode = *((uint32_t *)address);
 	opcode &= 0xff;
 	cprintf("Instruction: %s\n", opcnames[(int)opcode]);
@@ -340,4 +341,3 @@ mon_si(int argc, char **argv, struct Trapframe *tf)
 
 	return -1;
 }
-

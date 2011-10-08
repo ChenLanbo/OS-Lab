@@ -256,7 +256,7 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	}
 
 	// Debug info
-	cprintf("segment_alloc succeeds\n");
+	// cprintf("segment_alloc succeeds\n");
 }
 
 //

@@ -221,6 +221,8 @@ trap(struct Trapframe *tf)
 	assert(!(read_eflags() & FL_IF));
 
 	cprintf("Incoming TRAP frame at %p\n", tf);
+	// print_trapframe(tf);
+	// cprintf("*************************************\n");
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
