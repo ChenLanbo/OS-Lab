@@ -75,6 +75,16 @@ void
 env_init(void)
 {
 	// LAB 3: Your code here.
+	int i;
+	LIST_INIT(&env_free_list);
+	// memset(envs, 0, sizeof(envs));
+	for (i = NENV - 1; i >= 0; i--){
+		envs[i].env_id = 0;
+		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
+	}
+
+	// Debug info
+	cprintf("env_init succeeds\n");
 }
 
 //
@@ -90,6 +100,7 @@ env_init(void)
 static int
 env_setup_vm(struct Env *e)
 {
+	uint32_t n;
 	int i, r;
 	struct Page *p = NULL;
 
@@ -116,11 +127,43 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	p->pp_ref = 1;
+	memset(page2kva(p), 0, PGSIZE);
+
+	e->env_pgdir = page2kva(p);
+	e->env_cr3 = page2pa(p);
+
+	for (i = 0; i < 1024; i++){
+		(e->env_pgdir)[i] = boot_pgdir[i];
+	}
+
+	// Here is important, 
+	e->env_pgdir[PDX(UENVS)] |= PTE_U;
+
+	// now setup the kernel portion of the new environment's address space
+	// UPAGES
+	// n = ROUNDUP(npage * sizeof(struct Page), PGSIZE);
+	// if ((r = boot_map_segment(e->env_pgdir, UPAGES, n, PADDR(pages), PTE_U)) < 0){
+	// 	  return r;
+	// }
+
+	// UENVS
+	// n = ROUNDUP(NENV * sizeof(struct Env), PGSIZE);
+	// boot_map_segment(e->env_pgdir, UENVS, n, PADDR(envs), PTE_U);
+
+	// KSTACKTOP
+	// boot_map_segment(e->env_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), 0);
+
+	// KERNBASE
+	// boot_map_segment(e->env_pgdir, KERNBASE, 0x10000000, 0, PTE_PS);
 
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
 	e->env_pgdir[PDX(VPT)]  = e->env_cr3 | PTE_P | PTE_W;
 	e->env_pgdir[PDX(UVPT)] = e->env_cr3 | PTE_P | PTE_U;
+
+	// Debug info
+	cprintf("env_setup_vm succeeds\n");
 
 	return 0;
 }
@@ -209,6 +252,21 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	// Hint: It is easier to use segment_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
+	uint32_t i, lbound, rbound;
+	struct Page *p;
+	lbound = ROUNDDOWN((uint32_t)va, PGSIZE);
+	rbound = ROUNDUP((uint32_t)va + len, PGSIZE);
+
+	for (i = lbound; i < rbound; i += PGSIZE){
+		if (page_alloc(&p) == -E_NO_MEM){
+			panic("No memory available");
+		}
+
+		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W);
+	}
+
+	// Debug info
+	// cprintf("segment_alloc succeeds\n");
 }
 
 //
@@ -265,11 +323,78 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+	pte_t *entry;
+	struct Proghdr *ph, *eph;
+	uint32_t i, lbound, rbound, dst, src;
+
+	// Load program's entry point
+	e->env_tf.tf_eip = ((struct Elf *)binary)->e_entry;
+
+	// Get program header
+	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
+	eph = ph + ((struct Elf *)binary)->e_phnum;
+
+	// Load ELF
+	for ( ; ph < eph; ph++){
+		// loadable
+		if (ph->p_type == ELF_PROG_LOAD){
+			// Allocate segment
+			segment_alloc(e, (void *)(ph->p_va), ph->p_memsz);
+
+			// Zero allocated memory
+			lbound = ROUNDDOWN((uint32_t)ph->p_va, PGSIZE);
+			rbound = ROUNDUP((uint32_t)ph->p_va + ph->p_memsz, PGSIZE);
+			for (i = lbound; i < rbound; i += PGSIZE){
+				entry = pgdir_walk(e->env_pgdir, (void *)i, 0);
+
+				memset(page2kva(pa2page(PTE_ADDR(*entry))), 0, PGSIZE);
+			}
+
+			lbound = ROUNDUP((uint32_t)ph->p_va, PGSIZE);
+			rbound = ROUNDDOWN((uint32_t)ph->p_va + ph->p_filesz, PGSIZE);
+
+			if (rbound < lbound){
+				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 0);
+				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (ph->p_va & 0xfff));
+				src = (uint32_t)binary + ph->p_offset;
+
+				memmove((void *)dst, (void *)src, ph->p_filesz);
+			} else {
+				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 0);
+				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (ph->p_va & 0xfff));
+				src = (uint32_t)binary + ph->p_offset;
+
+				if (lbound - ph->p_va){
+					memmove((void *)dst, (void *)src, lbound - ph->p_va);
+				}
+
+				src += lbound - ph->p_va;
+
+				for (i = lbound; i < rbound; i += PGSIZE, src += PGSIZE){
+					entry = pgdir_walk(e->env_pgdir, (void *)i, 0);
+					dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (i & 0xfff));
+					// memset((void *)dst, 0, PGSIZE);
+					memmove((void *)dst, (void *)src, PGSIZE);
+				}
+
+				entry = pgdir_walk(e->env_pgdir, (void *)rbound, 0);
+				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (rbound & 0xfff));
+
+				if (ph->p_va + ph->p_filesz - rbound){
+					memmove((void *)dst, (void *)src, (ph->p_va + ph->p_filesz - rbound));
+				}
+			}
+		}
+	}
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	segment_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+	
+	// Debug info
+	cprintf("load_icode succeeds\n");
 }
 
 //
@@ -283,6 +408,20 @@ void
 env_create(uint8_t *binary, size_t size)
 {
 	// LAB 3: Your code here.
+	int r;
+	struct Env *e;
+
+	if ((r = env_alloc(&e, 0)) < 0){
+		panic("env_alloc: %e", r);
+		return ;
+	}
+
+	cprintf("env_create pid %u\n", e->env_id);
+
+	load_icode(e, binary, size);
+
+	// Debug info
+	cprintf("env_create succeeds\n");
 }
 
 //
@@ -398,6 +537,14 @@ env_run(struct Env *e)
 	
 	// LAB 3: Your code here.
 
-	panic("env_run not yet implemented");
+	// context switch
+	if (curenv != e){
+		curenv = e;
+	}
+
+	curenv->env_runs = curenv->env_runs + 1;
+	lcr3((uint32_t)curenv->env_cr3);
+	env_pop_tf(&(curenv->env_tf));
+	// panic("env_run not yet implemented");
 }
 

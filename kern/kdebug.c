@@ -143,6 +143,13 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 		// Return -1 if it is not.  Hint: Call user_mem_check.
 		// LAB 3: Your code here.
 
+		// cprintf("Debug info: User space\n");
+
+		if (user_mem_check(curenv, (void *)USTABDATA, sizeof(struct UserStabData), PTE_U) < 0){
+			// cprintf("Debug info: User USTABDATA is not mapped\n");
+			return -1;
+		}
+
 		stabs = usd->stabs;
 		stab_end = usd->stab_end;
 		stabstr = usd->stabstr;
@@ -150,11 +157,23 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 
 		// Make sure the STABS and string table memory is valid.
 		// LAB 3: Your code here.
+		if (user_mem_check(curenv, (void *)stabs, (uint32_t)stab_end - (uint32_t)stabs, PTE_U) < 0){
+			// cprintf("Debug info: User stabs is not mapped\n");
+			return -1;
+		}
+
+		if (user_mem_check(curenv, (void *)stabstr, (uint32_t)stabstr_end - (uint32_t)stabstr, PTE_U) < 0){
+			// cprintf("Debug info: User stabstr is not mapped\n");
+			return -1;
+		}
+
 	}
 
 	// String table validity checks
 	if (stabstr_end <= stabstr || stabstr_end[-1] != 0)
 		return -1;
+
+	cprintf("Debug info: \n");
 
 	// Now we find the right stabs that define the function containing
 	// 'eip'.  First, we find the basic source file containing 'eip'.
@@ -167,6 +186,8 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	stab_binsearch(stabs, &lfile, &rfile, N_SO, addr);
 	if (lfile == 0)
 		return -1;
+
+	cprintf("Debug info: \n");
 
 	// Search within that file's stabs for the function definition
 	// (N_FUN).
@@ -204,6 +225,16 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
+	/*  
+		N_SLINE -> text segment line number
+	 */
+	stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+
+	if (lline <= rline) {
+		info->eip_line = rline;
+	} else {
+		return -1; 
+	}
 
 	
 	// Search backwards from the line number for the relevant filename
