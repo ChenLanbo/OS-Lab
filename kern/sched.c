@@ -40,8 +40,7 @@ sched_yield(void)
 		}
 	}
 
-	cprintf("Next candidate %d\n", nxtpid);
-
+	// cprintf("Next candidate %d\n", nxtpid);
 	if (nxtpid == NENV){
 		for (nxtpid = 1; nxtpid != curpid && nxtpid < NENV; nxtpid++){
 			if (envs[nxtpid].env_id != 0 && envs[nxtpid].env_status == ENV_RUNNABLE){
@@ -49,8 +48,6 @@ sched_yield(void)
 			}
 		}
 
-		// cprintf("NN %d\n", nxtpid);
-		// cprintf("Next candidate %d\n", nxtpid);
 		if (nxtpid == NENV){
 			nxtpid = 0;
 		}

@@ -347,7 +347,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 			lbound = ROUNDDOWN((uint32_t)ph->p_va, PGSIZE);
 			rbound = ROUNDUP((uint32_t)ph->p_va + ph->p_memsz, PGSIZE);
 			for (i = lbound; i < rbound; i += PGSIZE){
-				entry = pgdir_walk(e->env_pgdir, (void *)i, 1);
+				entry = pgdir_walk(e->env_pgdir, (void *)i, 0);
 
 				memset(page2kva(pa2page(PTE_ADDR(*entry))), 0, PGSIZE);
 			}
@@ -356,13 +356,13 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 			rbound = ROUNDDOWN((uint32_t)ph->p_va + ph->p_filesz, PGSIZE);
 
 			if (rbound < lbound){
-				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 1);
+				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 0);
 				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (ph->p_va & 0xfff));
 				src = (uint32_t)binary + ph->p_offset;
 
 				memmove((void *)dst, (void *)src, ph->p_filesz);
 			} else {
-				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 1);
+				entry = pgdir_walk(e->env_pgdir, (void *)ph->p_va, 0);
 				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (ph->p_va & 0xfff));
 				src = (uint32_t)binary + ph->p_offset;
 
@@ -373,13 +373,13 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 				src += lbound - ph->p_va;
 
 				for (i = lbound; i < rbound; i += PGSIZE, src += PGSIZE){
-					entry = pgdir_walk(e->env_pgdir, (void *)i, 1);
+					entry = pgdir_walk(e->env_pgdir, (void *)i, 0);
 					dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (i & 0xfff));
 					// memset((void *)dst, 0, PGSIZE);
 					memmove((void *)dst, (void *)src, PGSIZE);
 				}
 
-				entry = pgdir_walk(e->env_pgdir, (void *)rbound, 1);
+				entry = pgdir_walk(e->env_pgdir, (void *)rbound, 0);
 				dst = (uint32_t)KADDR(PTE_ADDR(*entry) + (rbound & 0xfff));
 
 				if (ph->p_va + ph->p_filesz - rbound){
