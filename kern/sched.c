@@ -27,20 +27,20 @@ sched_yield(void)
 		env_run(&envs[1]);
 		return;
 	}*/
-	cprintf("Curenv %x\n", curenv);
 	if (curenv == NULL){
 		curpid = 0;
 	} else {
 		curpid = curenv - envs;
 	}
 
+	cprintf("Curenv %d\n", curpid);
 	for (nxtpid = curpid + 1; nxtpid < NENV; nxtpid++){
 		if (envs[nxtpid].env_id != 0 && envs[nxtpid].env_status == ENV_RUNNABLE){
 			break;
 		}
 	}
 
-	cprintf("NN %d\n", nxtpid);
+	cprintf("Next candidate %d\n", nxtpid);
 
 	if (nxtpid == NENV){
 		for (nxtpid = 1; nxtpid != curpid && nxtpid < NENV; nxtpid++){
@@ -49,15 +49,17 @@ sched_yield(void)
 			}
 		}
 
-		cprintf("NN %d\n", nxtpid);
-		if (nxtpid == curpid || nxtpid == NENV){
+		// cprintf("NN %d\n", nxtpid);
+		// cprintf("Next candidate %d\n", nxtpid);
+		if (nxtpid == NENV){
 			nxtpid = 0;
 		}
 	}
 
 	if (nxtpid != 0){
-		cprintf("Next run %d, yield %d\n", nxtpid, curpid);
+		cprintf("Next run %d, yield %d\n", envs[nxtpid].env_id, envs[curpid].env_id);
 		env_run(&envs[nxtpid]);
+		return ;
 	}
 
 	// Run the special idle environment when nothing else is runnable.

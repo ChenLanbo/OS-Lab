@@ -24,6 +24,7 @@ libmain(int argc, char **argv)
 	// cprintf("off %u\n", ENVX(pid));
 	// cprintf("env %08x\n", env);
 	// cprintf("env %08x\n", env);
+	cprintf("In libmain, about to start user program\n");
 
 	// save the name of the program so that panic() can use it
 	if (argc > 0)

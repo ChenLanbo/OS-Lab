@@ -51,11 +51,13 @@ i386_init(void)
 #else
 	// Touch all you want.
 	// ENV_CREATE(user_primes);
-	ENV_CREATE(user_yield);
-	ENV_CREATE(user_yield);
+	ENV_CREATE(user_dumbfork);
+	// ENV_CREATE(user_yield);
+	// ENV_CREATE(user_yield);
 #endif // TEST*
 
-	cprintf("ENV CREATE DONE\n");
+	// Debug
+	// cprintf("ENV CREATE DONE\n");
 
 	// Schedule and run the first user environment!
 	sched_yield();

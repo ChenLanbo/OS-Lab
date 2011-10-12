@@ -86,15 +86,18 @@ sys_exofork(void)
 	// LAB 4: Your code here.
 	int ret;
 	struct Env *newenv;
+
+	cprintf("%d Exofork a child\n", curenv->env_id);
 	if ((ret = env_alloc(&newenv, curenv->env_id)) < 0){
 		return ret;
 	}
-
+	cprintf("Child %d created\n", newenv->env_id);
 	// set the status to be ENV_NOT_RUNNABLE
 	newenv->env_status = ENV_NOT_RUNNABLE;
 
 	// register set
 	newenv->env_tf = curenv->env_tf;
+	newenv->env_tf.tf_regs.reg_eax = 0;
 	
 	return newenv->env_id;
 	// panic("sys_exofork not implemented");
@@ -203,6 +206,8 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if (page_alloc(&pp) != 0){
 		return -E_NO_MEM;
 	}
+	memset(page2kva(pp), 0, PGSIZE);
+	pp->pp_ref = 1;
 
 	// insert into the page table of env
 	if (page_insert(env->env_pgdir, pp, va, perm) != 0){
@@ -243,7 +248,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 
 	// LAB 4: Your code here.
 	struct Env *srcenv, *dstenv;
-	pte_t *entry;
+	pte_t *srcentry, *dstentry;
 	int allowed_perm;
 
 	// Get env
@@ -253,8 +258,11 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if (envid2env(dstenvid, &dstenv, 1) != 0){
 		return -E_BAD_ENV;
 	}
+	// Debug
+	// cprintf("*** src %d dst %d\n", srcenv->env_id, dstenv->env_id);
 
 	// check the validity of srcva, dstva
+	// cprintf("DONE1\n");
 	if ((uint32_t)srcva >= UTOP || (uint32_t)dstva >= UTOP){
 		return -E_INVAL;
 	}
@@ -262,26 +270,34 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 	}
 
-	// check srcva is mapped
-	entry = pgdir_walk(srcenv->env_pgdir, srcva, 0);
-	if (entry == NULL || ((*entry) & PTE_P) == 0){
+	srcentry = pgdir_walk(srcenv->env_pgdir, srcva, 0);
+	if (srcentry == NULL){
 		return -E_INVAL;
 	}
 
 	// Check perm
 	allowed_perm = PTE_U | PTE_P;
-	if (perm & PTE_W){
-		return -E_INVAL;
-	}
 	if ((perm & allowed_perm) != allowed_perm){
 		return -E_INVAL;
 	}
-	allowed_perm |= PTE_AVAIL;
+	allowed_perm |= PTE_W | PTE_AVAIL;
 	// Check if there are other permissions
 	if ((perm ^ (perm & allowed_perm)) != 0){
 		return -E_INVAL;
 	}
+	if (((*srcentry) & PTE_W) == 0 && (perm & PTE_W)){
+		return -E_INVAL;
+	}
 
+	/*dstentry = pgdir_walk(dstenv->env_pgdir, dstva, 1);
+	if (dstentry == NULL){
+		return -E_NO_MEM;
+	}*/
+	if (page_insert(dstenv->env_pgdir, pa2page(PTE_ADDR(*srcentry)), dstva, perm) < 0){
+		return -E_NO_MEM;
+	}
+
+	return 0;
 	// panic("sys_page_map not implemented");
 }
 
@@ -298,7 +314,22 @@ sys_page_unmap(envid_t envid, void *va)
 	// Hint: This function is a wrapper around page_remove().
 
 	// LAB 4: Your code here.
-	panic("sys_page_unmap not implemented");
+	struct Env *env;
+	pte_t *entry;
+
+	if (envid2env(envid, &env, 1) != 0){
+		return -E_BAD_ENV;
+	}
+	// the caller doesn't have permission to change envid?
+	
+	if ((uint32_t)va >= UTOP || (uint32_t)va % PGSIZE != 0){
+		return -E_INVAL;
+	}
+
+	page_remove(env->env_pgdir, va);
+
+	return 0;
+	// panic("sys_page_unmap not implemented");
 }
 
 // Try to send 'value' to the target env 'envid'.
@@ -392,6 +423,22 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_destroy:
 			return sys_env_destroy(a1);
 			break;
+		case SYS_page_alloc:
+			return sys_page_alloc(a1, (void *)a2, a3);
+			break;
+		case SYS_page_map:
+			return sys_page_map(a1, (void *)a2, a3, (void *)a4, a5);
+			break;
+		case SYS_page_unmap:
+			return sys_page_unmap(a1, (void *)a2);
+			break;
+		case SYS_exofork:
+			return sys_exofork();
+			break;
+		case SYS_env_set_status:
+			return sys_env_set_status(a1, a2);
+			break;
+		// scheduling
 		case SYS_yield:
 			sys_yield();
 		case NSYSCALLS:
