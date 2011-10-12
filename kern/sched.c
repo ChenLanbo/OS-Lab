@@ -20,6 +20,46 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 
+	envid_t curpid, nxtpid;
+
+	/*if (curenv == NULL){
+		cprintf("First run %d\n", 1);
+		env_run(&envs[1]);
+		return;
+	}*/
+	cprintf("Curenv %x\n", curenv);
+	if (curenv == NULL){
+		curpid = 0;
+	} else {
+		curpid = curenv - envs;
+	}
+
+	for (nxtpid = curpid + 1; nxtpid < NENV; nxtpid++){
+		if (envs[nxtpid].env_id != 0 && envs[nxtpid].env_status == ENV_RUNNABLE){
+			break;
+		}
+	}
+
+	cprintf("NN %d\n", nxtpid);
+
+	if (nxtpid == NENV){
+		for (nxtpid = 1; nxtpid != curpid && nxtpid < NENV; nxtpid++){
+			if (envs[nxtpid].env_id != 0 && envs[nxtpid].env_status == ENV_RUNNABLE){
+				break;
+			}
+		}
+
+		cprintf("NN %d\n", nxtpid);
+		if (nxtpid == curpid || nxtpid == NENV){
+			nxtpid = 0;
+		}
+	}
+
+	if (nxtpid != 0){
+		cprintf("Next run %d, yield %d\n", nxtpid, curpid);
+		env_run(&envs[nxtpid]);
+	}
+
 	// Run the special idle environment when nothing else is runnable.
 	if (envs[0].env_status == ENV_RUNNABLE)
 		env_run(&envs[0]);
