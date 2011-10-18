@@ -907,7 +907,8 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	pte_t *entry;
 
 	lbound = ROUNDUP((uint32_t)va, PGSIZE);
-	rbound = ROUNDDOWN((uint32_t)va + len, PGSIZE);
+	// Be careful here
+	rbound = ROUNDDOWN((uint32_t)va + len - 1, PGSIZE);
 
 	if ((uint32_t)va >= ULIM){
 		user_mem_check_addr = (uintptr_t)va;

@@ -149,9 +149,19 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	// LAB 4: Your code here.
 	// panic("sys_env_set_pgfault_upcall not implemented");
 	struct Env *env;
+	cprintf("sys_env_set_pgfault_upcall\n");
 	if (envid2env(envid, &env, 1) != 0){
 		return -E_BAD_ENV;
 	}
+	env->env_pgfault_upcall = NULL;
+	// I haven't checked the permission for the caller, is curenv != env
+	if (env != curenv){
+		return -E_BAD_ENV;
+	}
+
+	cprintf("sys_env_set_pgfault_upcall\n");
+	env->env_pgfault_upcall = func;
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -189,11 +199,13 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if (envid2env(envid, &env, 1) != 0){
 		return -E_BAD_ENV;
 	}
+	// cprintf("sys_page_alloc ********** %x\n", va);
 
 	// Check va
 	if ((uint32_t)va >= UTOP || (uint32_t)va % PGSIZE != 0){
 		return -E_INVAL;
 	}
+	cprintf("sys_page_alloc **********\n");
 
 	// Check perm
 	allowed_perm = PTE_U | PTE_P;
@@ -205,7 +217,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if ((perm ^ (perm & allowed_perm)) != 0){
 		return -E_INVAL;
 	}
-
 	// alloc a physical page
 	if (page_alloc(&pp) != 0){
 		return -E_NO_MEM;
@@ -214,7 +225,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	pp->pp_ref = 1;
 
 	// insert into the page table of env
-	if (page_insert(env->env_pgdir, pp, va, perm) != 0){
+	if (page_insert(env->env_pgdir, pp, va, perm | PTE_P) != 0){
 		page_free(pp);
 		return -E_NO_MEM;
 	}
@@ -441,6 +452,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_env_set_status:
 			return sys_env_set_status(a1, a2);
+			break;
+		// set page fault upcall
+		case SYS_env_set_pgfault_upcall:
+			return sys_env_set_pgfault_upcall(a1, (void *)a2);
 			break;
 		// scheduling
 		case SYS_yield:
