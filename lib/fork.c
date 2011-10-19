@@ -85,6 +85,7 @@ duppage(envid_t envid, unsigned pn)
 			panic("sys_page_map error %e", r);
 		}
 		// mapping the parenet its own page as PTE_COW
+		// because of PTE_W, parent needs to remap again
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), 0, (void *)(pn * PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0){
 			panic("sys_page_map error %e", r);
 		}

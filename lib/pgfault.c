@@ -33,6 +33,7 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 		if ((r = sys_page_alloc(sys_getenvid(), (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P)) < 0){
 			panic("sys_page_alloc in set_pgfault_handler failed %e", r);
 		}
+		sys_env_set_pgfault_upcall(sys_getenvid(), (void *)_pgfault_upcall);
 		// panic("set_pgfault_handler not implemented");
 	}
 	// Debug info
@@ -40,6 +41,5 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 
 	// Save handler pointer for assembly to call.
 	_pgfault_handler = handler;
-	sys_env_set_pgfault_upcall(sys_getenvid(), (void *)_pgfault_upcall);
 }
 

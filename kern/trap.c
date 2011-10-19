@@ -316,7 +316,7 @@ page_fault_handler(struct Trapframe *tf)
 		struct UTrapframe *utf;
 
 		// Check tf_esp is in UXSTACK
-		// -4, scratch space to save eip
+		// -4, scratch space to save eip return address
 		if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp < UXSTACKTOP){
 			utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4);
 		} else {
@@ -326,6 +326,7 @@ page_fault_handler(struct Trapframe *tf)
 		// Check permission
 		user_mem_assert(curenv, (void *)utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
 
+		// dump Trapframe info to UTrapframe
 		utf->utf_fault_va = fault_va;
 		utf->utf_err = tf->tf_err;
 		utf->utf_regs = tf->tf_regs;
@@ -333,6 +334,7 @@ page_fault_handler(struct Trapframe *tf)
 		utf->utf_eflags = tf->tf_eflags;
 		utf->utf_esp = tf->tf_esp;
 
+		// set eip to env_pgfault_upcall
 		curenv->env_tf.tf_eip = (uint32_t)curenv->env_pgfault_upcall;
 		curenv->env_tf.tf_esp = (uint32_t)utf;
 
