@@ -276,7 +276,6 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	// cprintf("sys_page_map *** src %d dst %d\n", srcenv->env_id, dstenv->env_id);
 
 	// check the validity of srcva, dstva
-	// cprintf("DONE1\n");
 	if ((uint32_t)srcva >= UTOP || (uint32_t)dstva >= UTOP){
 		return -E_INVAL;
 	}
@@ -294,6 +293,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if ((perm & allowed_perm) != allowed_perm){
 		return -E_INVAL;
 	}
+
 	allowed_perm |= PTE_W | PTE_AVAIL;
 	// Check if there are other permissions
 	if ((perm ^ (perm & allowed_perm)) != 0){

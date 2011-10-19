@@ -180,6 +180,11 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
+	if (tf->tf_trapno == T_DIVIDE || tf->tf_trapno == T_ILLOP || tf->tf_trapno == T_GPFLT){
+		cprintf("*************");
+		// return ;
+	}
+
 
 	if (tf->tf_trapno == T_DEBUG){
 		// Debug info
