@@ -311,16 +311,19 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	// Now we are in kernel mode
 	if (curenv->env_pgfault_upcall != NULL){
 		struct UTrapframe *utf;
 
-		cprintf("Dispatch to user-mode handler\n");
+		// Check tf_esp is in UXSTACK
+		// -4, scratch space to save eip
 		if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp < UXSTACKTOP){
 			utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4);
 		} else {
 			utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
 		}
 
+		// Check permission
 		user_mem_assert(curenv, (void *)utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
 
 		utf->utf_fault_va = fault_va;
@@ -332,8 +335,8 @@ page_fault_handler(struct Trapframe *tf)
 
 		curenv->env_tf.tf_eip = (uint32_t)curenv->env_pgfault_upcall;
 		curenv->env_tf.tf_esp = (uint32_t)utf;
-		cprintf("Dispatch to user-mode handler\n");
 
+		cprintf("Dispatch to user-mode handler\n");
 		env_run(curenv);
 	} else {
 		cprintf("curenv->env_pgfault_upcall is NULL\n");

@@ -87,11 +87,11 @@ sys_exofork(void)
 	int ret;
 	struct Env *newenv;
 
-	cprintf("%d Exofork a child\n", curenv->env_id);
+	// cprintf("%d Exofork a child\n", curenv->env_id);
 	if ((ret = env_alloc(&newenv, curenv->env_id)) < 0){
 		return ret;
 	}
-	cprintf("Child %d created\n", newenv->env_id);
+	// cprintf("Child %d created\n", newenv->env_id);
 	// set the status to be ENV_NOT_RUNNABLE
 	newenv->env_status = ENV_NOT_RUNNABLE;
 
@@ -149,15 +149,13 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	// LAB 4: Your code here.
 	// panic("sys_env_set_pgfault_upcall not implemented");
 	struct Env *env;
-	cprintf("sys_env_set_pgfault_upcall\n");
+	// cprintf("sys_env_set_pgfault_upcall\n");
 	if (envid2env(envid, &env, 1) != 0){
 		return -E_BAD_ENV;
 	}
 	env->env_pgfault_upcall = NULL;
 	// I haven't checked the permission for the caller, is curenv != env
-	if (env != curenv){
-		return -E_BAD_ENV;
-	}
+	// if (env != curenv){ return -E_BAD_ENV; }
 
 	cprintf("sys_env_set_pgfault_upcall\n");
 	env->env_pgfault_upcall = func;
@@ -205,7 +203,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if ((uint32_t)va >= UTOP || (uint32_t)va % PGSIZE != 0){
 		return -E_INVAL;
 	}
-	cprintf("sys_page_alloc **********\n");
+	// cprintf("sys_page_alloc **********\n");
 
 	// Check perm
 	allowed_perm = PTE_U | PTE_P;
@@ -217,6 +215,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if ((perm ^ (perm & allowed_perm)) != 0){
 		return -E_INVAL;
 	}
+	// cprintf("sys_page_alloc **********\n");
 	// alloc a physical page
 	if (page_alloc(&pp) != 0){
 		return -E_NO_MEM;
@@ -274,7 +273,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_BAD_ENV;
 	}
 	// Debug
-	// cprintf("*** src %d dst %d\n", srcenv->env_id, dstenv->env_id);
+	// cprintf("sys_page_map *** src %d dst %d\n", srcenv->env_id, dstenv->env_id);
 
 	// check the validity of srcva, dstva
 	// cprintf("DONE1\n");

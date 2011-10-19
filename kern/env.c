@@ -84,7 +84,7 @@ env_init(void)
 	}
 
 	// Debug info
-	cprintf("env_init succeeds\n");
+	// cprintf("env_init succeeds\n");
 }
 
 //
@@ -396,7 +396,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	segment_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
 	
 	// Debug info
-	cprintf("load_icode succeeds\n");
+	// cprintf("load_icode succeeds\n");
 }
 
 //
@@ -423,7 +423,7 @@ env_create(uint8_t *binary, size_t size)
 	load_icode(e, binary, size);
 
 	// Debug info
-	cprintf("env_create succeeds\n");
+	// cprintf("env_create succeeds\n");
 }
 
 //

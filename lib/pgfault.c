@@ -30,9 +30,8 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 		// First time through!
 		// LAB 4: Your code here.
 		// Allocate a page for UXSTACKTOP
-
-		if (sys_page_alloc(sys_getenvid(), (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P) < 0){
-			panic("sys_page_alloc in set_pgfault_handler failed");
+		if ((r = sys_page_alloc(sys_getenvid(), (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P)) < 0){
+			panic("sys_page_alloc in set_pgfault_handler failed %e", r);
 		}
 		// panic("set_pgfault_handler not implemented");
 	}
