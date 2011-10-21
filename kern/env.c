@@ -163,7 +163,7 @@ env_setup_vm(struct Env *e)
 	e->env_pgdir[PDX(UVPT)] = e->env_cr3 | PTE_P | PTE_U;
 
 	// Debug info
-	cprintf("env_setup_vm succeeds\n");
+	// cprintf("env_setup_vm succeeds\n");
 
 	return 0;
 }
@@ -221,6 +221,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -418,7 +419,7 @@ env_create(uint8_t *binary, size_t size)
 		return ;
 	}
 
-	cprintf("env_create pid %u\n", e->env_id);
+	cprintf("env_create pid %08x\n", e->env_id);
 
 	load_icode(e, binary, size);
 
@@ -544,7 +545,8 @@ env_run(struct Env *e)
 		curenv = e;
 	}
 
-	// cprintf("env.c -- Now running %d\n", e->env_id);
+	// Debug info
+	// cprintf("Now running %d FL_IF %d\n", e->env_id, e->env_tf.tf_eflags & FL_IF);
 
 	curenv->env_runs = curenv->env_runs + 1;
 	lcr3((uint32_t)curenv->env_cr3);

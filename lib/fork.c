@@ -19,6 +19,7 @@ pgfault(struct UTrapframe *utf)
 	uint32_t err = utf->utf_err;
 	int r;
 
+	cprintf("pgfault %08x\n", sys_getenvid());
 	// Check that the faulting access was (1) a write, and (2) to a
 	// copy-on-write page.  If not, panic.
 	// Hint:
@@ -26,11 +27,7 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
-	// Debug info
-	// cprintf("Page fault err %d addr %x\n", err, addr);
-	// if ((uint32_t)addr < USTACKTOP && (uint32_t)addr >= USTACKTOP - PGSIZE){
-	// 	cprintf("Fault on stack\n");
-	// }
+	// Check permissions
 	if (!(err & FEC_WR)){
 		panic("no write access");
 	}
@@ -49,12 +46,12 @@ pgfault(struct UTrapframe *utf)
 	//   No need to explicitly delete the old page's mapping.
 
 	// LAB 4: Your code here.
-	if ((r = sys_page_alloc(sys_getenvid(), (void *)PFTEMP, PTE_U | PTE_W | PTE_P)) < 0){
+	if ((r = sys_page_alloc(sys_getenvid(), (void *)PFTEMP, PTE_U | PTE_P | PTE_W)) < 0){
 		panic("sys_page_alloc error %e", r);
 	}
 	pageaddr = ROUNDDOWN(addr, PGSIZE);
 	memmove((void *)PFTEMP, pageaddr, PGSIZE);
-	if ((r = sys_page_map(0, (void *)PFTEMP, 0, pageaddr, PTE_P | PTE_U | PTE_W)) < 0){
+	if ((r = sys_page_map(0, (void *)PFTEMP, 0, pageaddr, PTE_U | PTE_P | PTE_W)) < 0){
 		panic("sys_page_map error %e", r);
 	}
 
@@ -80,26 +77,26 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	if ((entry & PTE_W) || (entry & PTE_COW)){
-		// cprintf("copy-on-write dup %x\n", PTE_AVAIL);
+		// cprintf("copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0){
-			panic("sys_page_map error %e", r);
+			panic("sys_page_map error in duppage %e", r);
 		}
 		// mapping the parenet its own page as PTE_COW
 		// because of PTE_W, parent needs to remap again
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), 0, (void *)(pn * PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0){
-			panic("sys_page_map error %e", r);
+			panic("sys_page_map error in duppage %e", r);
 		}
 	} else {
 		// cprintf("Not copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P)) < 0){
-			panic("sys_page_map error %e", r);
+			panic("sys_page_map error in duppage %e", r);
 		}
 	}
 	
-	// panic("duppage not implemented");
 	return 0;
 }
 
+// 2nd version of duppage, not copy-on-write
 static int
 duppage2(envid_t envid, unsigned pn)
 {
@@ -108,7 +105,7 @@ duppage2(envid_t envid, unsigned pn)
 	perm = vpt[pn] & (PTE_U | PTE_P | PTE_W);
 
 	if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), perm)) < 0){
-		panic("sys_page_map error %e", r);
+		panic("sys_page_map error in duppage2 %e", r);
 	}
 	return 0;
 }
@@ -146,11 +143,13 @@ fork(void)
 	if (child < 0){
 		return child;
 	}
+	// Child process
 	if (child == 0){
 		env = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 
+	// copy-on-write all pages except UXSTACK
 	for (itr = UTEXT; itr < UXSTACKTOP - PGSIZE; itr += PGSIZE){
 		if (!(vpd[VPD(itr)] & PTE_P)){
 			continue;
@@ -168,6 +167,7 @@ fork(void)
 		panic("sys_page_alloc error %e", r);
 	}
 
+	// cprintf("Set child %x pgfault\n", child);
 	if ((r = sys_env_set_pgfault_upcall(child, _pgfault_upcall)) < 0){
 		panic("sys_env_set_pgfault_upcall error %e", r);
 	}
@@ -176,6 +176,7 @@ fork(void)
 		panic("sys_env_set_status error %e", r);
 	}
 
+	// cprintf("Now return to parent\n");
 	return child;
 }
 
@@ -200,6 +201,7 @@ sfork(void)
 		return 0;
 	}
 
+	// plain copy page mappings except USTACK, UXSTACK
 	for (itr = UTEXT; itr < USTACKTOP - PGSIZE; itr += PGSIZE){
 		if (!(vpd[VPD(itr)] & PTE_P)){
 			continue;
@@ -230,6 +232,5 @@ sfork(void)
 
 	return child;
 
-	// panic("sfork not implemented");
 	// return -E_INVAL;
 }

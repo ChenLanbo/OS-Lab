@@ -33,7 +33,7 @@ sched_yield(void)
 		curpid = curenv - envs;
 	}
 
-	cprintf("Curenv %d\n", curpid);
+	// cprintf("Curenv %d\n", curpid);
 	for (nxtpid = curpid + 1; nxtpid < NENV; nxtpid++){
 		if (envs[nxtpid].env_id != 0 && envs[nxtpid].env_status == ENV_RUNNABLE){
 			break;
@@ -54,7 +54,7 @@ sched_yield(void)
 	}
 
 	if (nxtpid != 0){
-		cprintf("Next run %d, yield %d\n", envs[nxtpid].env_id, envs[curpid].env_id);
+		// cprintf("Next run %d, yield %d\n", envs[nxtpid].env_id, envs[curpid].env_id);
 		env_run(&envs[nxtpid]);
 		return ;
 	}

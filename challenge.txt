@@ -1,2 +1,23 @@
 Name: Lanbo Chen
 ID  : #108079696
+
+************************************************************************************
+Lab4b Exercise 7 Challenge, sfork()
+
+	Implementation:
+
+	We just copy page mappings from UTEXT to USTACKTOP - PGSIZE in parent to the
+	child with the same permissions. And we copy-on-write parent's stack to the
+	child. Finally we allocate a new page for the child's exception stack.
+
+	See lib/fork.c functions: duppage2, sfork
+
+	Testing:
+
+	In order to test sfork(), I modify use/forktree.c as following:
+
+		int var = 0
+		void umain(void){
+		}
+
+

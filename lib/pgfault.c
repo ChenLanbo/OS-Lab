@@ -37,7 +37,7 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 		// panic("set_pgfault_handler not implemented");
 	}
 	// Debug info
-	cprintf("Register user page fault handler\n");
+	// cprintf("Register user page fault handler\n");
 
 	// Save handler pointer for assembly to call.
 	_pgfault_handler = handler;

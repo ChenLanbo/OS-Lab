@@ -99,6 +99,24 @@
 	/* syscall */
 	TRAPHANDLER_NOEC(trap_syscall, T_SYSCALL)
 
+	/*  External interrupt(IRQs)  */
+	TRAPHANDLER_NOEC(trap_iqr_0, IRQ_OFFSET + 0x0)
+	TRAPHANDLER_NOEC(trap_iqr_1, IRQ_OFFSET + 0x1)
+	TRAPHANDLER_NOEC(trap_iqr_2, IRQ_OFFSET + 0x2)
+	TRAPHANDLER_NOEC(trap_iqr_3, IRQ_OFFSET + 0x3)
+	TRAPHANDLER_NOEC(trap_iqr_4, IRQ_OFFSET + 0x4)
+	TRAPHANDLER_NOEC(trap_iqr_5, IRQ_OFFSET + 0x5)
+	TRAPHANDLER_NOEC(trap_iqr_6, IRQ_OFFSET + 0x6)
+	TRAPHANDLER_NOEC(trap_iqr_7, IRQ_OFFSET + 0x7)
+	TRAPHANDLER_NOEC(trap_iqr_8, IRQ_OFFSET + 0x8)
+	TRAPHANDLER_NOEC(trap_iqr_9, IRQ_OFFSET + 0x9)
+	TRAPHANDLER_NOEC(trap_iqr_a, IRQ_OFFSET + 0xa)
+	TRAPHANDLER_NOEC(trap_iqr_b, IRQ_OFFSET + 0xb)
+	TRAPHANDLER_NOEC(trap_iqr_c, IRQ_OFFSET + 0xc)
+	TRAPHANDLER_NOEC(trap_iqr_d, IRQ_OFFSET + 0xd)
+	TRAPHANDLER_NOEC(trap_iqr_e, IRQ_OFFSET + 0xe)
+	TRAPHANDLER_NOEC(trap_iqr_f, IRQ_OFFSET + 0xf)
+
 /*
  * Lab 3: Your code here for _alltraps
  *        The cpu has pushed old SS, old ESP, old, EFLAGS, old cs, old EIP onto the stack
@@ -112,6 +130,9 @@ _alltraps:
 	pushw $0
 	pushw %es
 	pushal
+
+	/* clear IF flag to disable IRQs */
+	cli
 
 	movl $GD_KD, %eax
 	movw %ax, %ds

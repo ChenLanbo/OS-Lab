@@ -13,7 +13,7 @@ umain(void)
 		cprintf("send 0 from %x to %x\n", sys_getenvid(), who);
 		ipc_send(who, 0, 0, 0);
 	}
-
+	cprintf("*** Now %x starts ping-pong\n", sys_getenvid());
 	while (1) {
 		uint32_t i = ipc_recv(&who, 0, 0);
 		cprintf("%x got %d from %x\n", sys_getenvid(), i, who);

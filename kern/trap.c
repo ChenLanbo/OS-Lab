@@ -78,7 +78,24 @@ extern void trap_mchk(struct Trapframe *);
 extern void trap_simderr(struct Trapframe *);
 extern void trap_syscall(struct Trapframe *);
 
-extern int rambo;
+// external interrupts(IRQs)
+extern void trap_iqr_0(struct Trapframe *);
+extern void trap_iqr_1(struct Trapframe *);
+extern void trap_iqr_2(struct Trapframe *);
+extern void trap_iqr_3(struct Trapframe *);
+extern void trap_iqr_4(struct Trapframe *);
+extern void trap_iqr_5(struct Trapframe *);
+extern void trap_iqr_6(struct Trapframe *);
+extern void trap_iqr_7(struct Trapframe *);
+extern void trap_iqr_8(struct Trapframe *);
+extern void trap_iqr_9(struct Trapframe *);
+extern void trap_iqr_a(struct Trapframe *);
+extern void trap_iqr_b(struct Trapframe *);
+extern void trap_iqr_c(struct Trapframe *);
+extern void trap_iqr_d(struct Trapframe *);
+extern void trap_iqr_e(struct Trapframe *);
+extern void trap_iqr_f(struct Trapframe *);
+
 
 void
 idt_init(void)
@@ -86,11 +103,7 @@ idt_init(void)
 	extern struct Segdesc gdt[];
 	
 	// LAB 3: Your code here.
-	// SETGATE(gate, istrap, sel, off, dpl)
-
-	// Debug info
-	// cprintf("Rambo %d\n", rambo);
-
+	// Exceptions and traps
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
 	SETGATE(idt[T_DEBUG], 1, GD_KT, trap_debug, 3);
 	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
@@ -109,6 +122,24 @@ idt_init(void)
 	SETGATE(idt[T_ALIGN], 0, GD_KT, trap_align, 0);
 	SETGATE(idt[T_MCHK], 0, GD_KT, trap_mchk, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
+
+	// External interrupts
+	SETGATE(idt[IRQ_OFFSET + 0x0], 1, GD_KT, trap_iqr_0, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x1], 1, GD_KT, trap_iqr_1, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x2], 1, GD_KT, trap_iqr_2, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x3], 1, GD_KT, trap_iqr_3, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x4], 1, GD_KT, trap_iqr_4, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x5], 1, GD_KT, trap_iqr_5, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x6], 1, GD_KT, trap_iqr_6, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x7], 1, GD_KT, trap_iqr_7, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x8], 1, GD_KT, trap_iqr_8, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x9], 1, GD_KT, trap_iqr_9, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xa], 1, GD_KT, trap_iqr_a, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xb], 1, GD_KT, trap_iqr_b, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xc], 1, GD_KT, trap_iqr_c, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xd], 1, GD_KT, trap_iqr_d, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xe], 1, GD_KT, trap_iqr_e, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xf], 1, GD_KT, trap_iqr_f, 0);
 
 	// syscall should be trap,
 	// SETCALLGATE(idt[T_SYSCALL], GD_KT, trap_syscall, 0);
@@ -170,6 +201,11 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle clock interrupts.
 	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + 0){
+		// cprintf("Timer interrupt\n");
+		sched_yield();
+		return ;
+	}
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -181,7 +217,7 @@ trap_dispatch(struct Trapframe *tf)
 	}
 
 	if (tf->tf_trapno == T_DIVIDE || tf->tf_trapno == T_ILLOP || tf->tf_trapno == T_GPFLT){
-		cprintf("*************");
+		// cprintf("*************");
 		// return ;
 	}
 
@@ -343,7 +379,9 @@ page_fault_handler(struct Trapframe *tf)
 		curenv->env_tf.tf_eip = (uint32_t)curenv->env_pgfault_upcall;
 		curenv->env_tf.tf_esp = (uint32_t)utf;
 
-		cprintf("Dispatch to user-mode handler\n");
+		// Debug info
+		// cprintf("Dispatch to user-mode page fault handler: fault_va %08x\n", fault_va);
+		// if (fault_va >= USTACKTOP - PGSIZE && fault_va < USTACKTOP) cprintf("pgfautl on stack\n");
 		env_run(curenv);
 	} else {
 		cprintf("curenv->env_pgfault_upcall is NULL\n");
