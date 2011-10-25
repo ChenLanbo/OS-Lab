@@ -133,6 +133,7 @@ _alltraps:
 
 	/* clear IF flag to disable IRQs */
 	cli
+	
 
 	movl $GD_KD, %eax
 	movw %ax, %ds
