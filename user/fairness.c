@@ -18,7 +18,7 @@ umain(void)
 		}
 	} else {
 		cprintf("%x loop sending to %x\n", id, envs[1].env_id);
-		while (1)
+		while (1) 
 			ipc_send(envs[1].env_id, 0, 0, 0);
 	}
 }

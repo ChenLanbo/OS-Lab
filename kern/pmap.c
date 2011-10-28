@@ -10,6 +10,9 @@
 #include <kern/kclock.h>
 #include <kern/env.h>
 
+// Lab4c challenge
+#include <kern/myipc.h>
+
 // for memutil
 physaddr_t max_physaddr;
 
@@ -210,6 +213,11 @@ i386_vm_init(void)
 	// Debug info
 	// cprintf("ENV %u\n", sizeof(struct Env));
 	envs  = (struct Env *)boot_alloc(NENV * sizeof(struct Page), PGSIZE);
+
+	//////////////////////////////////////////////////////////////////////
+	// LAB 4C Challenge
+	myipcs = (struct Myipc *)boot_alloc(NMYIPC * sizeof(struct Myipc), PGSIZE);
+	myipc_init();
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set

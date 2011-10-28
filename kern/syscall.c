@@ -12,6 +12,9 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 
+// Lab 4c challenge
+#include <kern/myipc.h>
+
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
@@ -197,13 +200,11 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if (envid2env(envid, &env, 1) != 0){
 		return -E_BAD_ENV;
 	}
-	// cprintf("sys_page_alloc ********** %x\n", va);
 
 	// Check va
 	if ((uint32_t)va >= UTOP || (uint32_t)va % PGSIZE != 0){
 		return -E_INVAL;
 	}
-	// cprintf("sys_page_alloc **********\n");
 
 	// Check perm
 	allowed_perm = PTE_U | PTE_P;
@@ -404,12 +405,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving){
 		return -E_IPC_NOT_RECV;
 	}
-	// Not blocked for ipc
-	if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving == 0){
-		return -E_IPC_NOT_RECV;
-	}
-	// Debug info
-	// cprintf("%x sys_ipc_try_send: target %x blocked, we can go on\n", sys_getenvid(), env->env_id);
 
 	// Check srcva
 	if ((uint32_t)srcva < UTOP){
@@ -439,6 +434,19 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		}
 	}
 
+	// Env is not blocked for ipc, add the message into kernel's message queue
+	if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving == 0){
+		// add to the message queue
+		if (myipc_queue_push(env->env_id, curenv->env_id, value, srcva, perm) < 0){
+			return -E_IPC_NOT_RECV;
+		} 
+		// curenv is blocked
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		return 0;
+	}
+	// Debug info
+	// cprintf("%x sys_ipc_try_send: target %x blocked, we can go on\n", sys_getenvid(), env->env_id);
+
 	// send succeeds
 	env->env_ipc_recving = 0;
 	env->env_ipc_from = sys_getenvid();
@@ -448,7 +456,9 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if ((uint32_t)srcva < UTOP){
 		//env->env_ipc_dstva = srcva;
 		if ((uint32_t)env->env_ipc_dstva < UTOP){
-			sys_page_map(0, srcva, envid, env->env_ipc_dstva, perm);
+			if (sys_page_map(0, srcva, envid, env->env_ipc_dstva, perm) < 0){
+				return -E_NO_MEM;
+			}
 			env->env_ipc_perm = perm;
 		} else {
 			env->env_ipc_perm = 0;
@@ -479,6 +489,43 @@ sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
 	// cprintf("%08x sys_ipc_recv\n", sys_getenvid());
+
+	// Challenge 
+	int r;
+	struct Myipc *message;
+	struct Env *srcenv, *dstenv;
+	
+	message = myipc_queue_pop(sys_getenvid());
+	if (message != NULL){
+		/* if ((r = envid2env(message->ipc_to, &dstenv, 0)) < 0){
+			return -E_BAD_ENV;
+		}*/
+		// cprintf("Message %x\n", message->ipc_from);
+		if ((r = envid2env(message->ipc_from, &srcenv, 0)) < 0){
+			return -E_BAD_ENV;
+		}
+		// send succeeds
+		curenv->env_ipc_recving = 0;
+		curenv->env_ipc_from = srcenv->env_id;
+		curenv->env_ipc_value = message->ipc_value;
+		// dstenv->env_status = ENV_RUNNABLE;
+
+		if ((uint32_t)dstva < UTOP){
+			//env->env_ipc_dstva = srcva;
+			if ((uint32_t)message->ipc_va < UTOP){
+				sys_page_map(message->ipc_from, message->ipc_va, 0, dstva, message->ipc_perm);
+				curenv->env_ipc_perm = message->ipc_perm;
+			} else {
+				curenv->env_ipc_perm = 0;
+			}
+		} else {
+			curenv->env_ipc_perm = 0;
+		}
+		srcenv->env_status = ENV_RUNNABLE;
+		// Debug info
+		return 0;
+	}
+	// cprintf("No message\n");
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_ipc_recving = 1;
 
