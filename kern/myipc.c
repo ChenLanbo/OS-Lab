@@ -19,8 +19,6 @@ static struct Myipc_list myipc_free_list;
 static struct Myipc_list myipc_queue_list;
 // static struct Myipc_queue queue;
 
-void myipc_queue_clean();
-
 void
 myipc_init(void)
 {
@@ -103,12 +101,17 @@ myipc_queue_clean()
 	struct Myipc *var;
 	struct Env *env;
 	int mark = 1;
+	// cprintf("Clean\n");
 	while (mark){
 		mark = 0;
 		LIST_FOREACH(var, &myipc_queue_list, ipc_link){
+			// target environment is destroyed,
+			// delete this message from the queue
 			if (envid2env(var->ipc_to, &env, 0) < 0){
 				if (envid2env(var->ipc_from, &env, 0) < 0){
 				} else {
+					// src environment
+					// cprintf("*** %x\n", env->env_id);
 					env->env_status = ENV_RUNNABLE;
 					env->env_tf.tf_regs.reg_eax = -E_INVAL;
 				}

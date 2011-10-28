@@ -63,6 +63,7 @@ sys_env_destroy(envid_t envid)
 	else
 		cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
 	env_destroy(e);
+
 	return 0;
 }
 

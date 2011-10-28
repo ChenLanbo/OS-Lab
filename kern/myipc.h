@@ -29,5 +29,7 @@ void myipc_init(void);
 int myipc_queue_push(envid_t to, envid_t from, uint32_t value, void *va, int perm);
 // Pop a message from the message queue
 struct Myipc * myipc_queue_pop(envid_t to);
+// Clean message queue for invalid messages
+void myipc_queue_clean();
 
 #endif
