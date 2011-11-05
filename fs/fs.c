@@ -143,13 +143,40 @@ fs_init(void)
 //	-E_NO_DISK if there's no space on the disk for an indirect block.
 //	-E_INVAL if filebno is out of range (it's >= NDIRECT + NINDIRECT).
 //
-// Analogy: This is like pgdir_walk for files.  
+// Analogy: This is like pgdir_walk for files.
 // Hint: Don't forget to clear any block you allocate.
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
 	// LAB 5: Your code here.
-	panic("file_block_walk not implemented");
+	int r;
+	void *addr = NULL;
+
+	if (filebno >= NDIRECT + NINDIRECT){
+		return -E_INVAL;
+	}
+	if (filebno < NDIRECT){
+		*ppdiskbno = &f->f_direct[filebno];
+		return 0;
+	}
+
+	if (f->f_indirect == 0){
+		if (!alloc){
+			return -E_NOT_FOUND;
+		}
+		if((r = alloc_block()) == -E_NO_DISK){
+			return -E_NO_DISK;
+		}
+		f->f_indirect = r;
+		// Clear this block?
+	}
+
+	// This could cause page fault, then kernel will load that block
+	addr = diskaddr(f->f_indirect);
+	*ppdiskbno = ((uint32_t *)addr + filebno - NDIRECT);
+
+	return 0;
+	// panic("file_block_walk not implemented");
 }
 
 // Set *blk to point at the filebno'th block in file 'f'.
@@ -164,7 +191,21 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
 	// LAB 5: Your code here.
-	panic("file_get_block not implemented");
+	int r;
+	uint32_t *pblkno;
+	if ((r = file_block_walk(f, filebno, &pblkno, 1)) < 0){
+		return r;
+	}
+
+	// if not exist
+	if (*pblkno == 0){
+		if ((r = alloc_block()) < 0){
+			return -E_NO_DISK;
+		}
+		*pblkno = r;
+	}
+	*blk = diskaddr(*pblkno);
+	return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
