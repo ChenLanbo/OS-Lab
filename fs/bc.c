@@ -37,11 +37,14 @@ bc_pgfault(struct UTrapframe *utf)
 	void *addr_align = ROUNDDOWN(addr, BLKSIZE);
 	uint32_t secno = ((uint32_t)addr_align - DISKMAP) / SECTSIZE;
 
+	// Debug info
+	// cprintf("bc_pgfault %08x\n", addr);
+
 	// Check that the fault was within the block cache region
-	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
+	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE)){
 		panic("page fault in FS: eip %08x, va %08x, err %04x",
 		      utf->utf_eip, addr, utf->utf_err);
-
+	}
 	// Allocate a page in the disk map region and read the
 	// contents of the block from the disk into that page.
 	//
@@ -49,9 +52,7 @@ bc_pgfault(struct UTrapframe *utf)
 	if ((r = sys_page_alloc(sys_getenvid(), (void *)addr_align, PTE_U | PTE_P | PTE_W)) < 0){
 		panic("sys_page_alloc error %e", r);
 	}
-	if (ide_read(secno, addr_align, BLKSECTS) != 0){
-		;
-	}
+	ide_read(secno, addr_align, BLKSECTS);
 
 	// Sanity check the block number. (exercise for the reader:
 	// why do we do this *after* reading the block in?)
@@ -91,9 +92,7 @@ flush_block(void *addr)
 		return ;
 	}
 
-	if (ide_write(secno, addr_align, BLKSECTS) != 0){
-		;
-	}
+	ide_write(secno, addr_align, BLKSECTS);
 
 	sys_page_map(id, addr_align, id, addr_align, PTE_USER);
 	// panic("flush_block not implemented");

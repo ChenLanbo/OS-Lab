@@ -9,7 +9,7 @@
 #include "fs.h"
 
 
-#define debug 0
+#define debug 1
 
 // The file system server maintains three structures
 // for each open file.
@@ -58,6 +58,7 @@ serve_init(void)
 		opentab[i].o_fd = (struct Fd*) va;
 		va += PGSIZE;
 	}
+	cprintf("serve_init done\n");
 }
 
 // Allocate an open file.
@@ -203,6 +204,11 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	struct Fsreq_read *req = &ipc->read;
 	struct Fsret_read *ret = &ipc->readRet;
 
+	int fd = req->req_fileid;
+	int r;
+	size_t count = MIN(PGSIZE, req->req_n);
+	struct OpenFile *o = NULL;
+
 	if (debug)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
@@ -215,7 +221,22 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	// Hint: Use file_read.
 	// Hint: The seek position is stored in the struct Fd.
 	// LAB 5: Your code here
-	panic("serve_read not implemented");
+	if ((r = openfile_lookup(envid, fd, &o)) < 0){
+		return r;
+	}
+	cprintf("o_fd ref: %d\n", pageref(o->o_fd));
+	if (pageref(o->o_fd) < 2){
+		return -E_INVAL;
+	}
+	// cprintf("serve_read: %d %d\n", fd, count);
+
+	if ((r = file_read(o->o_file, ret->ret_buf, count, o->o_fd->fd_offset)) < 0){
+		return r;
+	}
+
+	o->o_fd->fd_offset += r;
+
+	return r;
 }
 
 // Write req->req_n bytes from req->req_buf to req_fileid, starting at
@@ -225,11 +246,25 @@ serve_read(envid_t envid, union Fsipc *ipc)
 int
 serve_write(envid_t envid, struct Fsreq_write *req)
 {
+	int r;
+	int fd = req->req_fileid;
+	size_t count = MIN(PGSIZE, req->req_n);
+	struct OpenFile *o = NULL;
+
 	if (debug)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
+	if ((r = openfile_lookup(envid, fd, &o)) < 0){
+		return r;
+	}
+
+	if ((r = file_write(o->o_file, req->req_buf, count, o->o_fd->fd_offset)) < 0){
+		return r;
+	}
+	o->o_fd->fd_offset += r;
+	return r;
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	// panic("serve_write not implemented");
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -267,6 +302,8 @@ serve_flush(envid_t envid, struct Fsreq_flush *req)
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
 	file_flush(o->o_file);
+	// I add it here!!!
+	// o->o_fileid -= MAXOPEN;
 	return 0;
 }
 
@@ -324,6 +361,8 @@ serve(void)
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
+		// cprintf("HERE %x %x %x\n", whom, fsreq, vpt);
+		// cprintf("REQ %d %d %08x -- %d\n", req, debug, vpt, PDX(vpt + VPN(fsreq)));
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, vpt[VPN(fsreq)], fsreq);
@@ -364,6 +403,7 @@ umain(void)
 	fs_init();
 	fs_test();
 
+	// cprintf("DONE\n");
 	serve();
 }
 

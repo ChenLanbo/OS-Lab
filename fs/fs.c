@@ -119,6 +119,7 @@ fs_init(void)
 		ide_set_disk(0);
 	
 	bc_init();
+	cprintf("bc_init done\n");
 
 	// Set "super" to point to the super block.
 	super = diskaddr(1);
@@ -168,10 +169,12 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 			return -E_NO_DISK;
 		}
 		f->f_indirect = r;
-		// Clear this block?
+		// Clear this indirect block
+		memset(diskaddr(r), 0, BLKSIZE);
+		flush_block(diskaddr(r));
 	}
 
-	// This could cause page fault, then kernel will load that block
+	// Remember fileno - NDIRECT
 	addr = diskaddr(f->f_indirect);
 	*ppdiskbno = ((uint32_t *)addr + filebno - NDIRECT);
 
@@ -193,6 +196,7 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 	// LAB 5: Your code here.
 	int r;
 	uint32_t *pblkno;
+
 	if ((r = file_block_walk(f, filebno, &pblkno, 1)) < 0){
 		return r;
 	}
@@ -203,6 +207,9 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 			return -E_NO_DISK;
 		}
 		*pblkno = r;
+		// Clear this block
+		memset(diskaddr(r), 0, BLKSIZE);
+		flush_block(diskaddr(r));
 	}
 	*blk = diskaddr(*pblkno);
 	return 0;
