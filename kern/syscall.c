@@ -335,7 +335,6 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_NO_MEM;
 	}*/
 	if (page_insert(dstenv->env_pgdir, pa2page(PTE_ADDR(*srcentry)), dstva, perm) < 0){
-		cprintf("sys_page_map undone!!!!!!\n");
 		return -E_NO_MEM;
 	}
 	return 0;

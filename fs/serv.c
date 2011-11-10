@@ -9,7 +9,7 @@
 #include "fs.h"
 
 
-#define debug 1
+#define debug 0
 
 // The file system server maintains three structures
 // for each open file.
@@ -58,7 +58,6 @@ serve_init(void)
 		opentab[i].o_fd = (struct Fd*) va;
 		va += PGSIZE;
 	}
-	cprintf("serve_init done\n");
 }
 
 // Allocate an open file.
@@ -302,8 +301,6 @@ serve_flush(envid_t envid, struct Fsreq_flush *req)
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
 	file_flush(o->o_file);
-	// I add it here!!!
-	// o->o_fileid -= MAXOPEN;
 	return 0;
 }
 
@@ -361,8 +358,6 @@ serve(void)
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
-		// cprintf("HERE %x %x %x\n", whom, fsreq, vpt);
-		// cprintf("REQ %d %d %08x -- %d\n", req, debug, vpt, PDX(vpt + VPN(fsreq)));
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, vpt[VPN(fsreq)], fsreq);
@@ -403,7 +398,6 @@ umain(void)
 	fs_init();
 	fs_test();
 
-	// cprintf("DONE\n");
 	serve();
 }
 

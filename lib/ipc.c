@@ -24,7 +24,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
 	int r;
-	// cprintf("%x ipc_recv %08x\n", sys_getenvid(), pg);
+	// cprintf("%x ipc_recv\n", sys_getenvid());
 	if (pg == NULL){
 		r = sys_ipc_recv((void *)UTOP);
 	} else {
@@ -62,8 +62,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
 	int r;
-	// cprintf("%d send\n", sys_getenvid());
-	/*if (pg == NULL){
+	if (pg == NULL){
 		r = sys_ipc_try_send(to_env, val, (void *)UTOP, perm);
 	} else {
 		r = sys_ipc_try_send(to_env, val, pg, perm);
@@ -74,10 +73,10 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 		sys_yield();
 	} else {
 		panic("sys_ipc_try_send error: %e", r);
-	}*/
+	}
 
 	// Old for loop
-	while (1){
+	/* while (1){
 		// try send
 		if (pg == NULL){
 			r = sys_ipc_try_send(to_env, val, (void *)UTOP, perm);
@@ -92,5 +91,5 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 		} else {
 			panic("sys_ipc_try_send error: %e", r);
 		}
-	}
+	} */
 }
