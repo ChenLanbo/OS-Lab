@@ -63,7 +63,7 @@ alloc_block(void)
 	// LAB 5: Your code here.
 	uint32_t i, j, blockno;
 	for (i = 0; i < BLKBITSIZE / 32; i++){
-		if ((bitmap[i] & 0xffffffff) > 0){
+		if ((bitmap[i] & 0xffffffff) != 0xffffffff){
 			break;
 		}
 	}
@@ -209,6 +209,7 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 		*pblkno = r;
 		// Clear this block
 		memset(diskaddr(r), 0, BLKSIZE);
+		// flush this empty block into disk
 		flush_block(diskaddr(r));
 	}
 	*blk = diskaddr(*pblkno);

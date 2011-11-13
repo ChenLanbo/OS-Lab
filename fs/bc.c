@@ -1,6 +1,9 @@
 
 #include "fs.h"
 
+static int eviction = 0;
+const static int threshold = 16;
+
 // Return the virtual address of this disk block.
 void*
 diskaddr(uint32_t blockno)
@@ -24,6 +27,50 @@ va_is_dirty(void *va)
 	return (vpt[VPN(va)] & PTE_D) != 0;
 }
 
+// LAB 5 Exercise 2 Challenge: block cache eviction
+void
+bc_reclaim(int blockno)
+{	
+	int x, y, num;
+	void *addr1;
+	eviction++;
+	cprintf("bc_pgfault at block %d -- cnt %02d\n", blockno, eviction);
+	if (eviction < threshold){
+		return ;
+	}
+	eviction = 0;
+	for (x = 0; x < BLKBITSIZE / 32; x++){
+		// All blocks are free
+		if ((bitmap[x] & 0xffffffff) == 0xffffffff){
+			continue;
+		}
+		// Reclaim
+		for (y = 0; y < 32; y++){
+			if ((bitmap[x] & (1 << y)) == 0){
+				num = x * 32 + y;
+				// Debug info
+				// cprintf("Block num %d is not free\n", num);
+				// skip boot sector, super block, bitmap block
+				if (num > 2){
+					addr1 = diskaddr(num);
+					if (!(vpt[VPN(addr1)] & PTE_P)){
+						// fatal error
+						// panic("invalid");
+						continue;
+					}
+					if (vpt[VPN(addr1)] & PTE_A){
+						cprintf("Evict block %d\n", num);
+						if (vpt[VPN(addr1)] & PTE_D){
+							flush_block(addr1);
+						}
+						sys_page_unmap(0, addr1);
+					}
+				}
+			}
+		}
+	}
+}
+
 // Fault any disk block that is read or written in to memory by
 // loading it from disk.
 // Hint: Use ide_read and BLKSECTS.
@@ -36,6 +83,9 @@ bc_pgfault(struct UTrapframe *utf)
 
 	void *addr_align = ROUNDDOWN(addr, BLKSIZE);
 	uint32_t secno = ((uint32_t)addr_align - DISKMAP) / SECTSIZE;
+
+	// Exercise 2 Challenge
+	bc_reclaim(blockno);
 
 	// Check that the fault was within the block cache region
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
@@ -91,7 +141,7 @@ flush_block(void *addr)
 
 	ide_write(secno, addr_align, BLKSECTS);
 
-	sys_page_map(id, addr_align, id, addr_align, PTE_USER);
+	sys_page_map(id, addr_align, id, addr_align, PTE_P | PTE_U | PTE_W);
 	// panic("flush_block not implemented");
 }
 
