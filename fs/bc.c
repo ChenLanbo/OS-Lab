@@ -1,7 +1,7 @@
-
 #include "fs.h"
 
-static int eviction = 0;
+// LAB 5 Exercise 2 Challenge
+static int pgfault_cnt = 0;
 const static int threshold = 16;
 
 // Return the virtual address of this disk block.
@@ -33,12 +33,12 @@ bc_reclaim(int blockno)
 {	
 	int x, y, num;
 	void *addr1;
-	eviction++;
-	cprintf("bc_pgfault at block %d -- cnt %02d\n", blockno, eviction);
-	if (eviction < threshold){
+	pgfault_cnt++;
+	cprintf("bc_pgfault at block %d -- cnt %02d\n", blockno, pgfault_cnt);
+	if (pgfault_cnt < threshold){
 		return ;
 	}
-	eviction = 0;
+	pgfault_cnt = 0;
 	for (x = 0; x < BLKBITSIZE / 32; x++){
 		// All blocks are free
 		if ((bitmap[x] & 0xffffffff) == 0xffffffff){

@@ -2,107 +2,107 @@ Name: Lanbo Chen
 ID  : #108079696
 
 *********************************************************************************
-Lab4c Exercise 10 Challenge 1(fairness), 2(non-loop ipc_send).
+LAB 5 Exercise 2: Block cache eviction
 
-	Implementation:
+	In fs/bc.c, add function bc_reclaim() to evict file blocks.
 
-	In order to improve the fairness of current ipc, I let the kernel maintain a
-	message queue to store the message from one process to another. Here is basic
-	idea:
+	Two variables:
+	pgfault_cnt: the number of times which bc_pgfault is been called
+	threshold  : when eviction reaches to threshold, evict block cache, and set
+				 pgfault_cnt back to zero
 	
-	1. When process A tries to send a message to process B, if B is waiting for
-	   message, then we just follow the original work flow.
-	2. If B is currently runnable, then we add A's message into the back of 
-	   kernel's message queue, mark B as blocked and return.
-	3. If process A calls sys_ipc_recv, it first check if there's any message to
-	   A itself in kernel's message queue. If so, the kernel pops a message at
-	   the front of the queue and passes it to A. Otherwise, mark A as blocked.
+	Go through the bitmap, check which block is being used, if it is accessed in
+	page table, then call sys_page_unmap to free corresponding page frame. If
+	the dirty bit is set, then flush this block back to disk before call
+	sys_page_unmap.
 
-	To make the ipc_send as non-looping, I modify the sys_ipc_send syscall to be
-	a blocking call. In other words, when process A is currently runable and B is
-	sending a message, put the message into the queue and mark B as blocked. As 
-	mentioned above, when next time A calls ipc_recv, it gets a message of B from
-	the queue, then A can mark B as runnable, since the message has been 
-	successfully delivered.
+	For more detail, see fs/bc.c
 
-	See kern/myipc.h, kern/myipc.c and kern/syscall.c for detail code.
+	Test Result:
 
-	Testing Result of user/fairness.c:
-
-	In libmain, about to start user program
-	In libmain, about to start user program
-	1002 loop sending to 1001
-	In libmain, about to start user program
-	1003 loop sending to 1001
-	1001 recv from 1002
-	1001 recv from 1002
-	1001 recv from 1003
-	1001 recv from 1002
-	1001 recv from 1002
-	1001 recv from 1003
-	1001 recv from 1002
-	1001 recv from 1002
-	1001 recv from 1003
-	1001 recv from 1002
-	1001 recv from 1002
-	1001 recv from 1003
-	...
-	   
-*********************************************************************************
-
-*********************************************************************************
-Lab4b Exercise 7 Challenge, sfork()
-
-	Implementation:
-
-	We just copy page mappings from UTEXT to USTACKTOP - PGSIZE in parent to the
-	child with the same permissions. And we copy-on-write parent's stack to the
-	child. Finally we allocate a new page for the child's exception stack.
-
-	See lib/fork.c functions: duppage2, sfork
-
-	Testing:
-
-	In order to test sfork(), I modify use/forktree.c as following:
-
-		int var = 0
-		void umain(void){
-			int pid;
-			cprintf("Before sfork() var = %d\n", var);
-			pid = sfork();
-
-			// Child
-			if (pid == 0)
-				var = 1;
-			else
-				sys_yield();
-
-			if (pid == 0){
-				cprintf("After sfork() var = %d in child\n", var);
-			} else {
-				cprintf("After sfork() var = %d in parent\n", var);
-			}
-		}
-	
-	Since parent and child share the same memory, after child modifies the var,
-	parent also get the same value.
-
-	Testing Result:
-
-	Run make qemu-nox and get the following results:
+	Since our file system is very small, set the threshold to be 16. After
+	bc_pgfault() has been called for 16 times, bc_reclaim() will work. The
+	following is the result of running user/icode.
 
 	...
-	Before sfork() var = 0
-	[00001001] new env 00001002
-	pgfault 00001001
-	pgfault 00001002
-	After sfork() var = 1 in child
-	[00001002] exiting gracefully
-	[00001002] free env 00001002
-	After sfork() var = 1 in parent
-	[00001001] exiting gracefully
-	[00001001] free env 00001001
+	env_create pid 00001000
+	env_create pid 00001001
+	env_create pid 00001002
+	In libmain, about to start user program
+	FS is running
+	FS can do I/O
+	Device 1 presence: 1
+	bc_pgfault at block 1 -- cnt 01
+	In libmain, about to start user program
+	icode startup
+	icode: open /motd
+	bc_pgfault at block 1 -- cnt 02
+	block cache is good
+	bc_init done
+	superblock is good
+	bc_pgfault at block 2 -- cnt 03
+	bitmap is good
+	alloc_block is good
+	bc_pgfault at block 22 -- cnt 04
+	file_open is good
+	bc_pgfault at block 3 -- cnt 05
+	file_get_block is good
+	file_flush is good
+	file_truncate is good
+	file rewrite is good
+	icode: read /motd
+	o_fd ref: 2
+	bc_pgfault at block 4 -- cnt 06
+	This is /motd, the message of the day.
+
+	Welcome to the JOS kernel, now with a file system!
+
+	o_fd ref: 2
+	icode: close /motd
+	icode: spawn /init
+	o_fd ref: 2
+	bc_pgfault at block 5 -- cnt 07
+	o_fd ref: 2
+	bc_pgfault at block 6 -- cnt 08
+	o_fd ref: 2
+	bc_pgfault at block 7 -- cnt 09
+	o_fd ref: 2
+	bc_pgfault at block 8 -- cnt 10
+	o_fd ref: 2
+	bc_pgfault at block 9 -- cnt 11
+	o_fd ref: 2
+	bc_pgfault at block 10 -- cnt 12
+	o_fd ref: 2
+	bc_pgfault at block 11 -- cnt 13
+	o_fd ref: 2
+	bc_pgfault at block 12 -- cnt 14
+	o_fd ref: 2
+	bc_pgfault at block 13 -- cnt 15
+	o_fd ref: 2
+	bc_pgfault at block 14 -- cnt 16
+	Evict block 5
+	Evict block 6
+	Evict block 7
+	Evict block 8
+	Evict block 9
+	Evict block 10
+	Evict block 11
+	Evict block 12
+	Evict block 13
+	Evict block 22
+	o_fd ref: 2
+	bc_pgfault at block 22 -- cnt 01
+	bc_pgfault at block 21 -- cnt 02
+	bc_pgfault at block 15 -- cnt 03
+	o_fd ref: 2
+	bc_pgfault at block 16 -- cnt 04
+	o_fd ref: 2
+	bc_pgfault at block 17 -- cnt 05
+	o_fd ref: 2
+	bc_pgfault at block 18 -- cnt 06
+	o_fd ref: 2
+	bc_pgfault at block 19 -- cnt 07
+	icode: exiting
 	...
 
 *********************************************************************************
-

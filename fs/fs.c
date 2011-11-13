@@ -63,7 +63,7 @@ alloc_block(void)
 	// LAB 5: Your code here.
 	uint32_t i, j, blockno;
 	for (i = 0; i < BLKBITSIZE / 32; i++){
-		if ((bitmap[i] & 0xffffffff) != 0xffffffff){
+		if ((bitmap[i] & 0xffffffff) != 0){
 			break;
 		}
 	}
