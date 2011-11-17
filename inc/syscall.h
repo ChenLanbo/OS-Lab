@@ -19,6 +19,8 @@ enum
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	SYS_time_msec,
+	// Lab 6 Network Driver
+	SYS_net_send,
 	NSYSCALLS
 };
 

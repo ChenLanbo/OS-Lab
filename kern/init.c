@@ -15,6 +15,8 @@
 #include <kern/time.h>
 #include <kern/pci.h>
 
+// LAB 6
+#include <kern/e100.h>
 
 void
 i386_init(void)
@@ -47,6 +49,8 @@ i386_init(void)
 	time_init();
 	pci_init();
 
+	dma_init();
+
 	// Should always have an idle process as first one.
 	ENV_CREATE(user_idle);
 
@@ -75,7 +79,7 @@ i386_init(void)
 	// ENV_CREATE(user_pingpong);
 	// ENV_CREATE(user_fairness);
 	// ENV_CREATE(user_fairness);
-	ENV_CREATE(user_testtime);
+	ENV_CREATE(net_testoutput);
 #endif // TEST*
 
 	// Schedule and run the first user environment!

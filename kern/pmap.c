@@ -13,6 +13,9 @@
 // Lab4c challenge
 #include <kern/myipc.h>
 
+// Lab6
+#include <kern/e100.h>
+
 // for memutil
 physaddr_t max_physaddr;
 
@@ -218,6 +221,11 @@ i386_vm_init(void)
 	// LAB 4C Challenge
 	myipcs = (struct Myipc *)boot_alloc(NMYIPC * sizeof(struct Myipc), PGSIZE);
 	myipc_init();
+
+
+	//////////////////////////////////////////////////////////////////////
+	// LAB 6
+	tcbs = (struct tcb *)boot_alloc(RING_SIZE * sizeof(struct cb), PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set

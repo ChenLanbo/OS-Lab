@@ -122,3 +122,10 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+// LAB 6
+int
+sys_net_send(void *buf, size_t size)
+{
+	return (int) syscall(SYS_net_send, 0, (uint32_t)buf, size, 0, 0, 0);
+}

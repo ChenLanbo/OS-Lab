@@ -2,7 +2,7 @@
 
 // LAB 5 Exercise 2 Challenge
 static int pgfault_cnt = 0;
-const static int threshold = 16;
+const static int threshold = PGSIZE;
 
 // Return the virtual address of this disk block.
 void*

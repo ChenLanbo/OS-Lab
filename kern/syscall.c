@@ -16,6 +16,9 @@
 // Lab 4c challenge
 #include <kern/myipc.h>
 
+// Lab 6
+#include <kern/e100.h>
+#include <inc/ns.h>
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
@@ -426,7 +429,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if ((r = envid2env(envid, &env, 0)) < 0){
 		return -E_BAD_ENV;
 	}
-
+	// cprintf("env is good\n");
 	// Target not blocked, waiting for ipc
 	if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving){
 		return -E_IPC_NOT_RECV;
@@ -582,6 +585,39 @@ sys_time_msec(void)
 	// panic("sys_time_msec not implemented");
 }
 
+static int
+sys_net_send(void *buf, size_t size)
+{
+	int r;
+	uint16_t status;
+	uint16_t command;
+	pte_t *entry;
+	struct Page *page;
+	page = page_lookup(curenv->env_pgdir, buf, &entry);
+	cprintf("sys_net_send: env %x %d -- %x %s\n", curenv->env_id, size, buf, page2kva(page));
+	struct jif_pkt *packet = page2kva(page);
+	cprintf("---------- %d\n", packet->jp_len);
+	if (page == NULL){
+		panic("fatal error");
+	}
+
+	if ((r = insert_tcb(packet->jp_data, size)) < 0){
+		return r;
+	}
+	status = get_scb_status();
+	command = get_scb_command();
+	cprintf("%d %d\n", status, command);
+	if (IS_CU_IDEL(status) || IS_CU_SUSPENDED(status)){
+	//	cprintf("***************** CU is idle or suspended %x %x\n", command, status);
+		outl(nic_pcif.reg_base[1] + 0x4, get_tcb_head());
+		// set_scb_command(SET_CUC_BASE(command));
+		set_scb_command(SET_CUC_START(command));
+	//	outw(nic_pcif.reg_base[1] + 0x2, SET_CUC_START(command));
+	}
+	// cprintf("sys_net_send insert done\n");
+	return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -641,6 +677,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_time_msec:
 			return sys_time_msec();
+			break;
+		case SYS_net_send:
+			return sys_net_send((void *)a1, a2);
 			break;
 		case NSYSCALLS:
 		default:

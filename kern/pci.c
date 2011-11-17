@@ -38,11 +38,16 @@ struct pci_driver pci_attach_vendor[] = {
 static int
 attachfn(struct pci_func *pcif)
 {
+	int i;
+	nic_pcif = *pcif;
 	pci_func_enable(pcif);
-	outl(pcif->reg_base[1], 0);
-	outl(pcif->reg_base[1] + 0x4, 0);
+	// Debug info
+	cprintf("I/O Mapped address %x\n", pcif->reg_base[1]);
 	outl(pcif->reg_base[1] + 0x8, 0);
-	//
+	// Delay
+	for (i = 0; i < 20; i++){
+		inb(0x84);
+	}
 	return 0;
 }
 
