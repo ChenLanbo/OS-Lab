@@ -226,6 +226,7 @@ i386_vm_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// LAB 6
 	cbl = (struct cb *)boot_alloc(RING * sizeof(struct cb), PGSIZE);
+	rfal = (struct rfa *)boot_alloc(RING * sizeof(struct rfa), PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
