@@ -60,7 +60,7 @@ struct cb {
 	char data[ETH_FRAME_SIZE];
 }__attribute__((aligned(4), packed));
 
-struct rfa {
+struct rfd {
 	volatile uint16_t status;
 	uint16_t command;
 	uint32_t link;
@@ -71,7 +71,7 @@ struct rfa {
 }__attribute__((aligned(4), packed));
 
 extern struct cb *cbl;
-extern struct rfa *rfal;
+extern struct rfd *rfa;
 
 int nic_init(struct pci_func *pcif);
 int nic_send_packet(void *buf, size_t size);

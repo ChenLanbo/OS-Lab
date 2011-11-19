@@ -224,9 +224,9 @@ i386_vm_init(void)
 
 
 	//////////////////////////////////////////////////////////////////////
-	// LAB 6
+	// LAB 6 Network Driver
 	cbl = (struct cb *)boot_alloc(RING * sizeof(struct cb), PGSIZE);
-	rfal = (struct rfa *)boot_alloc(RING * sizeof(struct rfa), PGSIZE);
+	rfa = (struct rfd *)boot_alloc(RING * sizeof(struct rfd), PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set

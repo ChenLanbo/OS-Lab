@@ -14,12 +14,12 @@ struct pci_func nic_pcif;
 // control block list
 struct cb *cbl;
 // receive frame area list
-struct rfa *rfal;
+struct rfd *rfa;
 
 static int cbl_head;
 static int cbl_tail;
-static int rfal_head;
-static int rfal_tail;
+static int rfa_head;
+static int rfa_tail;
 
 void
 cbl_init()
@@ -44,7 +44,7 @@ void
 rfal_ini()
 {
 	int i;
-	memset(rfal, 0, RING * sizeof(struct rfa));
+	memset(rfa, 0, RING * sizeof(struct rfd));
 	for (i = 0; i < RING; i++){
 		;
 	}
