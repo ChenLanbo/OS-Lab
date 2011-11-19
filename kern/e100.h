@@ -3,76 +3,82 @@
 #include <inc/types.h>
 #include <kern/pci.h>
 
-// Command Block
-struct cb {
-	volatile uint16_t status;
-	uint16_t cmd;
-	uint32_t link;
-	char data[1592];
-};
+#define ETH_FRAME_SIZE 1518
 
-// Tansmit command block
-struct tcb {
-	volatile uint16_t tcb_status;
-	uint16_t tcb_cmd;
-	uint32_t tcb_link;
-	uint32_t tcb_array_addr;
-	uint16_t tcb_byte_cnt;
-	uint16_t tcb_thrs;
-	char data[1584];
-};
+#define SCB_CU_NOP (0<<4)
+#define SCB_CU_START (1<<4)
+#define SCB_CU_RESUME (2<<4)
+#define SCB_CU_LOADBASE (6<<4)
 
-extern struct tcb *tcbs;
+#define SCB_STAT_CU_IDLE (0 << 6)
+#define SCB_STAT_CU_SUSPENDED (1 << 6)
+#define SCB_STAT_CU_LPQ (2 << 6)
+#define SCB_STAT_CU_HQP (3 << 6)
 
-#define RING_SIZE 256
+/*
+ * Action Command
+ */
+
+// No operation
+#define ACTION_NOP 0x0
+// Individual address setup
+#define ACTION_IAS 0x1
+// Configure
+#define ACTION_CFG 0x2
+// Multicast setup
+#define ACTION_MTS 0x3
+// Transmit
+#define ACTION_TRS 0x4
+// Load microcode
+#define ACTION_LMC 0x5
+// Dump
+#define ACTION_DMP 0x6
+// Diagnose
+#define ACTION_DGN 0x7
+
+#define ACTION_FLAG_EL 0x8000
+#define ACTION_FLAG_S  0x4000
+#define ACTION_FLAG_I  0x2000
+
+#define CU_STATUS_C (1 << 15)
+#define CU_STATUS_OK (1 << 13)
+#define CU_STATUS_U (1 << 12)
+
+#define RING 128
 #define TBD_SIMPLE_ARRAY_ADDR 0xffffffff
 
 
-//
-// System control block command
-//
-// No operation
-#define COMMAND_NOP 0x0
-// Individual address setup
-#define COMMAND_IAS 0x1
-// Configure
-#define COMMAND_CFG 0x2
-// Multicast setup
-#define COMMAND_MTS 0x3
-// Transmit
-#define COMMAND_TRS 0x4
-// Load microcode
-#define COMMAND_LMC 0x5
-// Dump
-#define COMMAND_DMP 0x6
-// Diagnose
-#define COMMAND_DGN 0x7
+// Command block
 
-// Transmit flag
-// EL: last one in CBL
-#define TRS_EL 0x8000
-// S : suspend
-#define TRS_S  0x4000
-#define TRS_I  0x2000
+struct cb {
+	volatile uint16_t status;
+	uint16_t command;
+	uint32_t link;
+	uint32_t array_addr;
+	uint16_t count;
+	uint16_t thresh;
+	char data[ETH_FRAME_SIZE];
+}__attribute__((aligned(4), packed));
 
-#define IS_CU_IDEL(s) ((((s) >> 6) & 0x3) == 0)
-#define IS_CU_SUSPENDED(s) ((((s) >> 6) & 0x3) == 1)
-#define IS_CU_LPQ(s) ((((s) >> 6) & 0x3) == 2)
-#define IS_CU_HQP(s) ((((s) >> 6) & 0x3) == 3)
+struct rfa {
+	volatile uint16_t status;
+	uint16_t command;
+	uint32_t link;
+	uint32_t padding;
+	uint16_t count;
+	uint16_t size;
+	char data[ETH_FRAME_SIZE];
+}__attribute__((aligned(4), packed));
 
-#define SET_CUC_START(c) ((c ^ (c & 0xf0)) | 0x30)
-#define SET_CUC_BASE(c) ((c ^ (c & 0xf0)) | 0x60)
+extern struct cb *cbl;
+extern struct rfa *rfal;
 
-extern struct pci_func nic_pcif;
-
-void dma_init();
-void cbl_init(struct cb *cbl, int *phead, int *ptail);
-uint32_t get_tcb_head();
-int insert_tcb(void *buf, size_t size);
+int nic_init(struct pci_func *pcif);
+int nic_send_packet(void *buf, size_t size);
 
 uint16_t get_scb_status();
-void set_scb_status(uint16_t status);
 uint16_t get_scb_command();
+void set_scb_status(uint16_t status);
 void set_scb_command(uint16_t command);
 
 #endif	// JOS_KERN_E100_H

@@ -16,8 +16,6 @@ static uint32_t pci_conf1_data_ioport = 0x0cfc;
 // Forward declarations
 static int pci_bridge_attach(struct pci_func *pcif);
 
-static int attachfn(struct pci_func *pcif);
-
 // PCI driver table
 struct pci_driver {
 	uint32_t key1, key2;
@@ -32,24 +30,8 @@ struct pci_driver pci_attach_class[] = {
 
 // pci_attach_vendor matches the vendor ID and device ID of a PCI device
 struct pci_driver pci_attach_vendor[] = {
-	{ 0x8086, 0x1209, attachfn }, { 0, 0, 0 }
+	{ 0x8086, 0x1209, nic_init }, { 0, 0, 0 }
 };
-
-static int
-attachfn(struct pci_func *pcif)
-{
-	int i;
-	nic_pcif = *pcif;
-	pci_func_enable(pcif);
-	// Debug info
-	cprintf("I/O Mapped address %x\n", pcif->reg_base[1]);
-	outl(pcif->reg_base[1] + 0x8, 0);
-	// Delay
-	for (i = 0; i < 20; i++){
-		inb(0x84);
-	}
-	return 0;
-}
 
 static void
 pci_conf1_set_addr(uint32_t bus,
@@ -170,20 +152,6 @@ pci_scan_bus(struct pci_bus *bus)
 			if (pci_show_devs)
 				pci_print_func(&af);
 			pci_attach(&af);
-
-			/*cprintf("*** Hello world ***\n");
-			// LAB 6
-			int itr = 0;
-			for ( ; ; itr++){
-				if (pci_attach_vendor[itr].key1 == 0 && pci_attach_vendor[itr].key2 == 0 && pci_attach_vendor[itr].attachfn == NULL){
-					break;
-				}
-				if (PCI_VENDOR(af.dev_id) == pci_attach_vendor[itr].key1 && PCI_PRODUCT(af.dev_id) == pci_attach_vendor[itr].key2){
-					cprintf("Hello world\n");
-					pci_attach_vendor[itr].attachfn(&af);
-					break;
-				}
-			}*/
 		}
 	}
 	

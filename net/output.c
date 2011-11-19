@@ -17,11 +17,15 @@ output(envid_t ns_envid)
 	//	- send the packet to the device driver
 	cprintf("ns_output\n");
 	while (1){
-		packet = (struct jif_pkt *)REQVA;
-		r = ipc_recv(&from, (void *)REQVA, &perm);
+		// packet = (struct jif_pkt *)REQVA;
+		r = ipc_recv(&from, &nsipcbuf, &perm);
+		if (from != ns_envid){
+			panic("bad environment %x", from);
+		}
 		if (r == NSREQ_OUTPUT){
-			printf("env %x get from env %x ret %d len %d str %s\n", sys_getenvid(), from, r, packet->jp_len, packet->jp_data);
-			sys_net_send(packet->jp_data, packet->jp_len);
+			// printf("env %x get from env %x ret %d len %d str %s\n", sys_getenvid(), from, r, packet->jp_len, packet->jp_data);
+			sys_net_send(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
+			// sys_net_send(packet->jp_data, packet->jp_len);
 		}
 	}
 }

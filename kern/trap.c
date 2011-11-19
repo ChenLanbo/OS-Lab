@@ -80,22 +80,22 @@ extern void trap_simderr(struct Trapframe *);
 extern void trap_syscall(struct Trapframe *);
 
 // external interrupts(IRQs)
-extern void trap_iqr_0(struct Trapframe *);
-extern void trap_iqr_1(struct Trapframe *);
-extern void trap_iqr_2(struct Trapframe *);
-extern void trap_iqr_3(struct Trapframe *);
-extern void trap_iqr_4(struct Trapframe *);
-extern void trap_iqr_5(struct Trapframe *);
-extern void trap_iqr_6(struct Trapframe *);
-extern void trap_iqr_7(struct Trapframe *);
-extern void trap_iqr_8(struct Trapframe *);
-extern void trap_iqr_9(struct Trapframe *);
-extern void trap_iqr_a(struct Trapframe *);
-extern void trap_iqr_b(struct Trapframe *);
-extern void trap_iqr_c(struct Trapframe *);
-extern void trap_iqr_d(struct Trapframe *);
-extern void trap_iqr_e(struct Trapframe *);
-extern void trap_iqr_f(struct Trapframe *);
+extern void trap_irq_0(struct Trapframe *);
+extern void trap_irq_1(struct Trapframe *);
+extern void trap_irq_2(struct Trapframe *);
+extern void trap_irq_3(struct Trapframe *);
+extern void trap_irq_4(struct Trapframe *);
+extern void trap_irq_5(struct Trapframe *);
+extern void trap_irq_6(struct Trapframe *);
+extern void trap_irq_7(struct Trapframe *);
+extern void trap_irq_8(struct Trapframe *);
+extern void trap_irq_9(struct Trapframe *);
+extern void trap_irq_a(struct Trapframe *);
+extern void trap_irq_b(struct Trapframe *);
+extern void trap_irq_c(struct Trapframe *);
+extern void trap_irq_d(struct Trapframe *);
+extern void trap_irq_e(struct Trapframe *);
+extern void trap_irq_f(struct Trapframe *);
 
 
 void
@@ -125,22 +125,22 @@ idt_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
 
 	// External interrupts
-	SETGATE(idt[IRQ_OFFSET + 0x0], 0, GD_KT, trap_iqr_0, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x1], 0, GD_KT, trap_iqr_1, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x2], 0, GD_KT, trap_iqr_2, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x3], 0, GD_KT, trap_iqr_3, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x4], 0, GD_KT, trap_iqr_4, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x5], 0, GD_KT, trap_iqr_5, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x6], 0, GD_KT, trap_iqr_6, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x7], 0, GD_KT, trap_iqr_7, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x8], 0, GD_KT, trap_iqr_8, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x9], 0, GD_KT, trap_iqr_9, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xa], 0, GD_KT, trap_iqr_a, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xb], 0, GD_KT, trap_iqr_b, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xc], 0, GD_KT, trap_iqr_c, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xd], 0, GD_KT, trap_iqr_d, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xe], 0, GD_KT, trap_iqr_e, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xf], 0, GD_KT, trap_iqr_f, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x0], 0, GD_KT, trap_irq_0, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x1], 0, GD_KT, trap_irq_1, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x2], 0, GD_KT, trap_irq_2, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x3], 0, GD_KT, trap_irq_3, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x4], 0, GD_KT, trap_irq_4, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x5], 0, GD_KT, trap_irq_5, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x6], 0, GD_KT, trap_irq_6, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x7], 0, GD_KT, trap_irq_7, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x8], 0, GD_KT, trap_irq_8, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x9], 0, GD_KT, trap_irq_9, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xa], 0, GD_KT, trap_irq_a, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xb], 0, GD_KT, trap_irq_b, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xc], 0, GD_KT, trap_irq_c, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xd], 0, GD_KT, trap_irq_d, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xe], 0, GD_KT, trap_irq_e, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xf], 0, GD_KT, trap_irq_f, 0);
 
 	// syscall should be trap,
 	// SETCALLGATE(idt[T_SYSCALL], GD_KT, trap_syscall, 0);
@@ -199,7 +199,7 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	int32_t ret;
-
+	// if (tf->tf_trapno != 48) cprintf("****** No. %d\n", tf->tf_trapno);
 	// Handle clock interrupts.
 	// LAB 4: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + 0){

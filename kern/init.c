@@ -49,8 +49,6 @@ i386_init(void)
 	time_init();
 	pci_init();
 
-	dma_init();
-
 	// Should always have an idle process as first one.
 	ENV_CREATE(user_idle);
 
