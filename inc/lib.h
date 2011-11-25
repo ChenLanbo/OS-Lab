@@ -58,6 +58,7 @@ unsigned int sys_time_msec(void);
 
 // LAB 6
 int sys_net_send(void *buf, size_t size);
+int sys_net_recv(void *buf, size_t size);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t sys_exofork(void) __attribute__((always_inline));

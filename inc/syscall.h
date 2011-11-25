@@ -21,6 +21,7 @@ enum
 	SYS_time_msec,
 	// Lab 6 Network Driver
 	SYS_net_send,
+	SYS_net_recv,
 	NSYSCALLS
 };
 

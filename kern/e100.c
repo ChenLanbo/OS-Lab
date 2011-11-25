@@ -27,27 +27,39 @@ cbl_init()
 	int i;
 	memset(cbl, 0, RING * sizeof(struct cb));
 	for (i = 0; i < RING; i++){
-		cbl[i].status = (1 << 15);
-		cbl[i].link = PADDR(&cbl[(i+1) % RING]);
+		cbl[i].status = CU_STATUS_C;
+		cbl[i].link = PADDR(&cbl[(i + 1) % RING]);
 		cbl[i].array_addr = TBD_SIMPLE_ARRAY_ADDR;
 		cbl[i].thresh = 0xe0;
 	}
-	cbl[0].command = ACTION_NOP | ACTION_FLAG_S;
+	cbl[0].command = COMMAND_NOP | COMMAND_FLAG_S;
 
 	outl(nic_pcif.reg_base[1] + 0x4, PADDR(cbl));
 	set_scb_command(SCB_CU_START);
-	cbl_head = 1;
+	cprintf("CBL_INIT DONE\n");
+	cbl_head = 0;
 	cbl_tail = 1;
 }
 
 void
-rfal_ini()
+rfa_init()
 {
 	int i;
 	memset(rfa, 0, RING * sizeof(struct rfd));
 	for (i = 0; i < RING; i++){
-		;
+		rfa[i].link = PADDR(&rfa[(i+1) % RING]);
+		rfa[rfa_tail].padding = TBD_SIMPLE_ARRAY_ADDR;
+		rfa[i].size = ETH_FRAME_SIZE;
 	}
+	// Initial structure: the EL bit of the last rfd should be set
+	rfa[RING - 1].command = RECEIVE_FLAG_EL;
+	outl(nic_pcif.reg_base[1] + 0x4, PADDR(rfa));
+	set_scb_command(SCB_RU_START);
+	cprintf("RFA_INIT DONE\n");
+	for (i = 0; i < RING; i++){
+		cprintf("RFA_INIT: %d %d\n", i, rfa[i].status);
+	}
+	rfa_tail = 1;
 }
 
 int
@@ -62,39 +74,92 @@ nic_init(struct pci_func *pcif)
 		inb(0x84);
 	}
 	cbl_init();
+	rfa_init();
 	cprintf("NIC_INIT DONE\n");
 	return 0;
 }
 
 int
-nic_insert_packet(void *buf, size_t size)
+nic_cu_insert_packet(void *buf, size_t size)
 {
-	if ((cbl_tail + 1) % RING == cbl_head){
-		return -1;
+	int cur = cbl_tail, pre = (cbl_tail - 1  < 0 ? RING - 1 : cbl_tail - 1);
+	while (cbl_head != cbl_tail){
+		if ((cbl[cbl_head].status & CU_STATUS_C) == 0){
+			break;
+		}
+		cbl_head++;
+	}
+	size = MIN(size, ETH_FRAME_SIZE);
+	memmove(cbl[cur].data, (char *)buf, size);
+
+	cbl[cur].command = COMMAND_TRS | COMMAND_FLAG_S;
+	cbl[cur].status = 0;
+	cbl[cur].array_addr = TBD_SIMPLE_ARRAY_ADDR;
+	cbl[cur].thresh = 0xe0;
+	cbl[cur].count = size;
+	cbl[pre].command &= ~COMMAND_FLAG_S;
+
+	/*int cur = cbl_tail, pre = (cbl_tail - 1  < 0 ? RING - 1 : cbl_tail - 1);
+	int i;
+	// for (i = 0; i < RING; i++){ if ((cbl[i].status & CU_STATUS_C)){ cprintf("I %d *****************\n", i); } }
+	if ((cbl[pre].status & CU_STATUS_C) == 0){
+		return 0;
+	}
+	size = MIN(size, ETH_FRAME_SIZE);
+	memmove(cbl[cur].data, (char *)buf, size);
+
+	cbl[cur].command = COMMAND_TRS | COMMAND_FLAG_S;
+	cbl[cur].status = 0;
+	cbl[cur].array_addr = TBD_SIMPLE_ARRAY_ADDR;
+	cbl[cur].thresh = 0xe0;
+	cbl[cur].count = size;
+	cbl[pre].command &= ~COMMAND_FLAG_S;*/
+	/*if (size > ETH_FRAME_SIZE){
+		size = ETH_FRAME_SIZE;
 	}
 	memmove(cbl[cbl_tail].data, (char *)buf, size);
 	cbl[cbl_tail].count = size;
-	cbl[cbl_tail].status = (1 << 15);
-	cbl[cbl_tail].command = ACTION_TRS | ACTION_FLAG_EL | ACTION_FLAG_S;
+	cbl[cbl_tail].command = COMMAND_TRS | COMMAND_FLAG_S;
 	cbl_tail = (cbl_tail + 1) % RING;
-	return 0;
+		pre = cbl_tail - 1;
+		if (pre < 0) i = RING - 1;
+		cbl[pre].command ^= COMMAND_FLAG_S;*/
+	return size;
 }
-
 
 int 
 nic_send_packet(void *buf, size_t size)
 {
-	uint16_t cur = get_scb_status();
+	int ret, nsend = 0, pre;
+	uint16_t stat = get_scb_status();
 
-	cprintf("nic_send_packet %d status %04x\n", cbl_tail, get_scb_status());
-	nic_insert_packet(buf, size);
-	// cprintf("status %x\n", get_scb_status());
-	if (cur & SCB_STAT_CU_SUSPENDED){
+	cprintf("nic_send_packet %d status %04x\n", cbl_tail, stat);
+	while (size != 0){
+		if (!(cbl[cbl_tail].status & CU_STATUS_C)){
+			break;
+		}
+		ret = nic_cu_insert_packet(buf, size);
+		// cprintf("RET: %d %d\n", ret, size);
+		if (ret == 0)
+			break;
+		nsend += ret;
+		size -= ret;
+		cbl_tail = (cbl_tail + 1) % RING;
+	}
+
+	if (nsend != 0 && (stat & SCB_STAT_CU_SUSPENDED)){
 		cprintf("SUSPENDED\n");
 		set_scb_command(SCB_CU_RESUME);
 	}
+	return nsend;
+	/*nic_cu_insert_packet(buf, size);
+	// cprintf("status %x\n", get_scb_status());
+	if (cur & SCB_STAT_CU_SUSPENDED){
+		// cprintf("SUSPENDED\n");
+		set_scb_command(SCB_CU_RESUME);
+	}
 	if ((cur & 0xc0) == SCB_STAT_CU_IDLE){
-		cprintf("IDLE\n");
+		// cprintf("IDLE\n");
 		outl(nic_pcif.reg_base[1] + 0x4, PADDR(&cbl[(cbl_tail - 1 + RING) % RING]));
 		set_scb_command(SCB_CU_START);
 	}
@@ -105,7 +170,57 @@ nic_send_packet(void *buf, size_t size)
 		else
 			break;
 	}
-	return size;
+	return size;*/
+}
+
+int
+nic_ru_get_packet(void *buf, size_t size)
+{
+	int ret = size, i, j;
+	cprintf("~~~~~~~~~~~~~~ nic_ru_insert_packet\n");
+	for (j = 0; j < RING; j++){
+		if (rfa[j].status & RU_STATUS_C){
+			cprintf("*** ASDFASDF *** %d t%d %d\n", j, rfa_tail, rfa[j].count & RU_COUNT_MASK);
+			break;
+		}
+	}
+	i = rfa_tail;
+	if ((rfa[i].status & RU_STATUS_C) == 0){
+		// cprintf("****** not complete\n");
+		return 0;
+	}
+
+	if (ret > (rfa[i].count & RU_COUNT_MASK)){
+		ret = (rfa[i].count & RU_COUNT_MASK);
+	}
+
+	memmove(buf, rfa[i].data, ret);
+
+	rfa[rfa_tail].command = RECEIVE_FLAG_EL;
+	rfa[rfa_tail].status = 0;
+	rfa[rfa_tail].count = 0;
+	rfa[rfa_tail].padding = TBD_SIMPLE_ARRAY_ADDR;
+	rfa[rfa_tail].size = ETH_FRAME_SIZE;
+	return ret;
+}
+
+int
+nic_recv_packet(void *buf, size_t size)
+{
+	int status = get_scb_status();
+	int ret, pre;
+	if ((ret = nic_ru_get_packet(buf, size)) == 0){
+		return 0;
+	}
+	cprintf("$$$$$$$$$ nic_recv_packet %d\n", ret);
+	pre = rfa_tail;
+	cbl[pre].status = 0;
+	rfa_tail = (rfa_tail + 1) % RING;
+	
+	if (status & SCB_STAT_RU_NORES){
+		set_scb_command(SCB_RU_RESUME);
+	}
+	return ret;
 }
 
 uint16_t

@@ -10,7 +10,7 @@ output(envid_t ns_envid)
 	envid_t from;
 	int r;
 	int perm;
-	struct jif_pkt *packet;
+	// struct jif_pkt *packet;
 
 	// LAB 6: Your code here:
 	// 	- read a packet from the network server
@@ -23,7 +23,7 @@ output(envid_t ns_envid)
 			panic("bad environment %x", from);
 		}
 		if (r == NSREQ_OUTPUT){
-			// printf("env %x get from env %x ret %d len %d str %s\n", sys_getenvid(), from, r, packet->jp_len, packet->jp_data);
+			cprintf("****************\n");
 			sys_net_send(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
 			// sys_net_send(packet->jp_data, packet->jp_len);
 		}

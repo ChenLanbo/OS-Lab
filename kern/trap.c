@@ -285,7 +285,8 @@ trap(struct Trapframe *tf)
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
 	// Debug info
-	// cprintf("Trapno %d\n", tf->tf_trapno);
+	if (tf->tf_trapno != 48 && tf->tf_trapno != 32 && tf->tf_trapno != 14)
+		cprintf("Trapno %d\n", tf->tf_trapno);
 	assert(!(read_eflags() & FL_IF));
 
 	// cprintf("Incoming TRAP frame at %p\n", tf);

@@ -77,7 +77,23 @@ static int
 send_data(struct http_request *req, int fd)
 {
 	// LAB 6: Your code here.
-	panic("send_data not implemented");
+	// panic("send_data not implemented");
+	int nread = 0, r;
+	char *buf = (char *)malloc(BUFFSIZE);
+
+	while (1){
+		r = read(fd, buf, BUFFSIZE);
+		if (r < 0){
+			return r;
+		}
+		if (r == 0){
+			break;
+		}
+		nread += r;
+		write(req->sock, buf, r);
+	}
+	free(buf);
+	return nread;
 }
 
 static int
@@ -216,14 +232,29 @@ send_file(struct http_request *req)
 	int r;
 	off_t file_size = -1;
 	int fd;
-
+	struct Stat s;
 	// open the requested url for reading
 	// if the file does not exist, send a 404 error using send_error
 	// if the file is a directory, send a 404 error using send_error
 	// set file_size to the size of the file
 
 	// LAB 6: Your code here.
-	panic("send_file not implemented");
+	// panic("send_file not implemented");
+	// 1. check dir
+	r = stat(req->url, &s);
+	if (r < 0 || s.st_isdir){
+		send_error(req, 404);
+		return r;
+	}
+	// 2. open file
+	r = open(req->url, O_RDONLY);
+	if (r < 0){
+		send_error(req, 404);
+		return r;
+	}
+	// 3. get stat
+	stat(req->url, &s);
+	file_size = s.st_size;
 
 	if ((r = send_header(req, 200)) < 0)
 		goto end;

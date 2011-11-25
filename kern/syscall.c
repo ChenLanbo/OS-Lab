@@ -592,6 +592,12 @@ sys_net_send(void *buf, size_t size)
 	return nic_send_packet(buf, size);
 }
 
+int
+sys_net_recv(void *buf, size_t size)
+{
+	return nic_recv_packet(buf, size);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -654,6 +660,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_net_send:
 			return sys_net_send((void *)a1, a2);
+			break;
+		case SYS_net_recv:
+			return sys_net_recv((void *)a1, a2);
 			break;
 		case NSYSCALLS:
 		default:
