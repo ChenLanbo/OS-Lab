@@ -110,7 +110,7 @@ nic_send_packet(void *buf, size_t size)
 	return ret;
 }
 
-int
+/*int
 nic_ru_get_packet(void *buf, size_t size)
 {
 	int ret = size, i, j;
@@ -129,16 +129,27 @@ nic_ru_get_packet(void *buf, size_t size)
 	j = (rfa_tail - 1 < 0 ? RING - 1 : rfa_tail - 1);
 	rfa[j].command &= ~RECEIVE_FLAG_EL;
 	return ret;
-}
+}*/
 
 int
 nic_recv_packet(void *buf, size_t size)
 {
 	int status = get_scb_status();
-	int ret, pre;
-	if ((ret = nic_ru_get_packet(buf, size)) == 0){
+	int ret = size, i = rfa_tail, j;
+	if ((rfa[i].status & RU_STATUS_C) == 0){
 		return 0;
 	}
+	if (ret > (rfa[i].count & RU_COUNT_MASK)){
+		ret = (rfa[i].count & RU_COUNT_MASK);
+	}
+	memmove(buf, rfa[i].data, ret);
+	// set to next rfd
+	rfa[i].command = RECEIVE_FLAG_EL;
+	rfa[i].status = 0;
+	rfa[i].count = 0;
+	j = (rfa_tail - 1 < 0 ? RING - 1 : rfa_tail - 1);
+	rfa[j].command &= ~RECEIVE_FLAG_EL;
+
 	rfa_tail = (rfa_tail + 1) % RING;
 	
 	if (status & SCB_STAT_RU_NORES){
