@@ -56,6 +56,7 @@ rfa_init()
 		rfa[i].size = ETH_FRAME_SIZE;
 	}
 	// initial structure: the EL bit of the last rfd should be set
+	// page 102 of intel 8255x
 	rfa[RING - 1].command = RECEIVE_FLAG_EL;
 	outl(nic_pcif.reg_base[1] + 0x4, PADDR(rfa));
 	set_scb_command(SCB_RU_START);
@@ -81,11 +82,9 @@ nic_init(struct pci_func *pcif)
 }
 
 // insert a cu to send
-int
+/*int
 nic_cu_insert_packet(void *buf, size_t size)
 {
-	int cur = cbl_tail;
-	int pre = (cbl_tail - 1  < 0 ? RING - 1 : cbl_tail - 1);
 	while (cbl_head != cbl_tail){
 		if ((cbl[cbl_head].status & CU_STATUS_C) == 0){
 			break;
@@ -103,34 +102,32 @@ nic_cu_insert_packet(void *buf, size_t size)
 	cbl[pre].command &= ~COMMAND_FLAG_S;
 
 	return size;
-}
+}*/
 
 int 
 nic_send_packet(void *buf, size_t size)
 {
 	int ret;
+	int cur = cbl_tail;
+	int pre = (cbl_tail - 1  < 0 ? RING - 1 : cbl_tail - 1);
 	uint16_t stat = get_scb_status();
-
-	/*while (size != 0){
-		if (!(cbl[cbl_tail].status & CU_STATUS_C)){
-			break;
-		}
-		ret = nic_cu_insert_packet(buf, size);
-		// cprintf("RET: %d %d\n", ret, size);
-		if (ret == 0)
-			break;
-		nsend += ret;
-		size -= ret;
-		cbl_tail = (cbl_tail + 1) % RING;
-	}*/
 
 	// if this cb's status is not CU_STATUS_C, return 0
 	if ((cbl[cbl_tail].status & CU_STATUS_C) == 0){
 		return 0;
 	}
-	ret = nic_cu_insert_packet(buf, size);
+	size = MIN(size, ETH_FRAME_SIZE);
+	memmove(cbl[cur].data, (char *)buf, size);
+
+	cbl[cur].command = COMMAND_TRS | COMMAND_FLAG_S;
+	cbl[cur].status = 0;
+	cbl[cur].array_addr = TBD_SIMPLE_ARRAY_ADDR;
+	cbl[cur].thresh = 0xe0;
+	cbl[cur].count = size;
+	cbl[pre].command &= ~COMMAND_FLAG_S;
+	// ret = nic_cu_insert_packet(buf, size);
 	cbl_tail = (cbl_tail + 1) % RING;
-	if (ret != 0 && (stat & SCB_STAT_CU_SUSPENDED)){
+	if ((stat & SCB_STAT_CU_SUSPENDED)){
 		set_scb_command(SCB_CU_RESUME);
 	}
 	return ret;
