@@ -81,29 +81,6 @@ nic_init(struct pci_func *pcif)
 	return 0;
 }
 
-// insert a cu to send
-/*int
-nic_cu_insert_packet(void *buf, size_t size)
-{
-	while (cbl_head != cbl_tail){
-		if ((cbl[cbl_head].status & CU_STATUS_C) == 0){
-			break;
-		}
-		cbl_head++;
-	}
-	size = MIN(size, ETH_FRAME_SIZE);
-	memmove(cbl[cur].data, (char *)buf, size);
-
-	cbl[cur].command = COMMAND_TRS | COMMAND_FLAG_S;
-	cbl[cur].status = 0;
-	cbl[cur].array_addr = TBD_SIMPLE_ARRAY_ADDR;
-	cbl[cur].thresh = 0xe0;
-	cbl[cur].count = size;
-	cbl[pre].command &= ~COMMAND_FLAG_S;
-
-	return size;
-}*/
-
 int 
 nic_send_packet(void *buf, size_t size)
 {
