@@ -215,9 +215,7 @@ read(int fdnum, void *buf, size_t n)
 	}
 	if (!dev->dev_read)
 		return -E_NOT_SUPP;
-	cprintf("READ FUNCTION HERE\n");
 	r = (*dev->dev_read)(fd, buf, n);
-	cprintf("READ FUNCTION HERE %d\n", r);
 	return r;
 }
 

@@ -81,7 +81,7 @@ open(const char *path, int mode)
 	}
 	// Debug info
 	// cprintf("Page ref %d\n", pageref(pfd));
-	cprintf("OPEN DONE\n");
+	// cprintf("OPEN DONE\n");
 	return fd2num(pfd);
 	// panic("open not implemented");
 }
