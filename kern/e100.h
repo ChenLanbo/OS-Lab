@@ -27,7 +27,6 @@
 #define SCB_STAT_RU_SUSPENDED (1 << 2)
 #define SCB_STAT_RU_NORES (2 << 2)
 #define SCB_STAT_RU_READY (4 << 2)
-#define SCB_STAT_RU_MASK (SCB_STAT_RU_IDLE | SCB_STAT_RU_SUSPENDED | SCB_STAT_RU_NORES | SCB_STAT_RU_READY)
 
 /*
  * Action Command
@@ -49,19 +48,6 @@
 #define COMMAND_DMP 0x6
 // Diagnose
 #define COMMAND_DGN 0x7
-
-/*
- * Receive Command
-
-// No operation
-#define RECEIVE_NOP 0x0
-#define RECEIVE_START 0x1
-#define RECEIVE_RESUME 0x2
-#define RECEIVE_DMA_REDIRECT 0x3
-#define RECEIVE_ABORT 0x4
-#define RECEIVE_HDS 0x5
-#define RECEIVE_L
- */
 
 #define COMMAND_FLAG_EL 0x8000
 #define COMMAND_FLAG_S  0x4000
@@ -94,7 +80,7 @@ struct cb {
 	uint16_t count;
 	uint16_t thresh;
 	char data[ETH_FRAME_SIZE];
-}__attribute__((aligned(4), packed));
+};//__attribute__((aligned(4), packed));
 
 struct rfd {
 	volatile uint16_t status;
@@ -104,7 +90,7 @@ struct rfd {
 	uint16_t count;
 	uint16_t size;
 	char data[ETH_FRAME_SIZE];
-}__attribute__((aligned(4), packed));
+};//__attribute__((aligned(4), packed));
 
 extern struct cb *cbl;
 extern struct rfd *rfa;
