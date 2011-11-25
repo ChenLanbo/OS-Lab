@@ -114,14 +114,14 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 	// bytes read will be written back to fsipcbuf by the file
 	// system server.
 	// LAB 5: Your code here
-	cprintf("( HERE )\n");
+
 	int r;
 	struct Fd *fd_store;
 	// if ((r = fd_lookup(fd->fd_file.id, &fd_store)) < 0){ return r; }
 
 	fsipcbuf.read.req_fileid = fd->fd_file.id;
 	fsipcbuf.read.req_n = n;
-	cprintf("devfile_read: id %d bytes %d\n", fsipcbuf.read.req_fileid, fsipcbuf.read.req_n);
+	// cprintf("devfile_read: id %d bytes %d\n", fsipcbuf.read.req_fileid, fsipcbuf.read.req_n);
 	if ((r = fsipc(FSREQ_READ, NULL)) < 0){
 		return r;
 	}

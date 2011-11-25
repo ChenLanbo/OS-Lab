@@ -253,8 +253,8 @@ send_file(struct http_request *req)
 		send_error(req, 404);
 		return r;
 	}
+	fd = r;
 	// 3. get stat
-	stat(req->url, &s);
 	file_size = s.st_size;
 	cprintf("Transfer file %s %d\n", req->url, file_size);
 	if ((r = send_header(req, 200)) < 0)

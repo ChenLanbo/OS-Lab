@@ -5,16 +5,19 @@
 
 #define ETH_FRAME_SIZE 1518
 
+// Command Unit Operation
 #define SCB_CU_NOP (0<<4)
 #define SCB_CU_START (1<<4)
 #define SCB_CU_RESUME (2<<4)
 #define SCB_CU_LOADBASE (6<<4)
 
+// Receive Unit Operation
 #define SCB_RU_NOP 0
 #define SCB_RU_START 1
 #define SCB_RU_RESUME 2
 #define SCB_RU_LOADBASE 6
 
+// SCB Status
 #define SCB_STAT_CU_IDLE (0 << 6)
 #define SCB_STAT_CU_SUSPENDED (1 << 6)
 #define SCB_STAT_CU_LPQ (2 << 6)
@@ -77,7 +80,7 @@
 #define RU_STATUS_OK (1 << 13)
 #define RU_COUNT_MASK ((1 << 14) - 1)
 
-#define RING 256
+#define RING 64
 #define TBD_SIMPLE_ARRAY_ADDR 0xffffffff
 
 

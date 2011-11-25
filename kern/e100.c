@@ -186,12 +186,12 @@ nic_ru_get_packet(void *buf, size_t size)
 	}
 
 	memmove(buf, rfa[i].data, ret);
-	j = rfa_tail - 1;
-	if (j < 0) j = RING - 1;
+	// j = rfa_tail - 1;
+	// if (j < 0) j = RING - 1;
 	rfa[rfa_tail].command = RECEIVE_FLAG_EL;
-	// rfa[rfa_tail].status = 0;
+	rfa[rfa_tail].status = 0;
 	rfa[rfa_tail].count = 0;
-	rfa[rfa_tail].size = ETH_FRAME_SIZE;
+	// rfa[rfa_tail].size = ETH_FRAME_SIZE;
 	rfa[j].command &= ~RECEIVE_FLAG_EL;
 	return ret;
 }
@@ -204,11 +204,9 @@ nic_recv_packet(void *buf, size_t size)
 	if ((ret = nic_ru_get_packet(buf, size)) == 0){
 		return 0;
 	}
-	// cprintf("$$$$$$$$$ nic_recv_packet %d\n", ret);
 	rfa_tail = (rfa_tail + 1) % RING;
 	
 	if (status & SCB_STAT_RU_NORES){
-		// cprintf("!!!!!!!!!! nic_recv_packet NO RESOURCES\n");
 		set_scb_command(SCB_RU_RESUME);
 	}
 	return ret;

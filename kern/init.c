@@ -55,10 +55,10 @@ i386_init(void)
 	// Start fs.
 	ENV_CREATE(fs_fs);
 
-// #if !defined(TEST_NO_NS)
+#if !defined(TEST_NO_NS)
 	// Start ns.
 	ENV_CREATE(net_ns);
-// #endif
+#endif
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
@@ -73,7 +73,7 @@ i386_init(void)
 	// ENV_CREATE(user_icode);
 	// ENV_CREATE(user_primes);
 	// ENV_CREATE(user_testfile);
-	// ENV_CREATE(user_icode);
+	ENV_CREATE(user_icode);
 	// ENV_CREATE(user_pingpong);
 	// ENV_CREATE(user_fairness);
 	// ENV_CREATE(user_fairness);
