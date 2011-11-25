@@ -57,7 +57,7 @@ rfa_init()
 	set_scb_command(SCB_RU_START);
 	cprintf("RFA_INIT DONE\n");
 	for (i = 0; i < RING; i++){
-		cprintf("RFA_INIT: %d %d\n", i, rfa[i].status);
+		cprintf("RFA_INIT: %d %x\n", i, rfa[i].status);
 	}
 	rfa_tail = 0;
 }
@@ -114,16 +114,6 @@ nic_cu_insert_packet(void *buf, size_t size)
 	cbl[cur].thresh = 0xe0;
 	cbl[cur].count = size;
 	cbl[pre].command &= ~COMMAND_FLAG_S;*/
-	/*if (size > ETH_FRAME_SIZE){
-		size = ETH_FRAME_SIZE;
-	}
-	memmove(cbl[cbl_tail].data, (char *)buf, size);
-	cbl[cbl_tail].count = size;
-	cbl[cbl_tail].command = COMMAND_TRS | COMMAND_FLAG_S;
-	cbl_tail = (cbl_tail + 1) % RING;
-		pre = cbl_tail - 1;
-		if (pre < 0) i = RING - 1;
-		cbl[pre].command ^= COMMAND_FLAG_S;*/
 	return size;
 }
 
@@ -133,7 +123,7 @@ nic_send_packet(void *buf, size_t size)
 	int ret, nsend = 0, pre;
 	uint16_t stat = get_scb_status();
 
-	cprintf("nic_send_packet %d status %04x\n", cbl_tail, stat);
+	// cprintf("nic_send_packet %d status %04x\n", cbl_tail, stat);
 	while (size != 0){
 		if (!(cbl[cbl_tail].status & CU_STATUS_C)){
 			break;
@@ -148,7 +138,7 @@ nic_send_packet(void *buf, size_t size)
 	}
 
 	if (nsend != 0 && (stat & SCB_STAT_CU_SUSPENDED)){
-		cprintf("SUSPENDED\n");
+		// cprintf("SUSPENDED\n");
 		set_scb_command(SCB_CU_RESUME);
 	}
 	return nsend;
@@ -177,13 +167,14 @@ int
 nic_ru_get_packet(void *buf, size_t size)
 {
 	int ret = size, i, j;
-	cprintf("~~~~~~~~~~~~~~ nic_ru_insert_packet\n");
-	for (j = 0; j < RING; j++){
+	// cprintf("~~~~~~~~~~~~~~ nic_ru_insert_packet\n");
+	/*for (j = 0; j < RING; j++){
+		cprintf("RING %d %x %d\n", j, rfa[j].status, rfa[j].count & RU_COUNT_MASK);
 		if (rfa[j].status & RU_STATUS_C){
 			cprintf("*** ASDFASDF *** %d t%d %d\n", j, rfa_tail, rfa[j].count & RU_COUNT_MASK);
 			break;
 		}
-	}
+	}*/
 	i = rfa_tail;
 	if ((rfa[i].status & RU_STATUS_C) == 0){
 		// cprintf("****** not complete\n");
@@ -195,12 +186,13 @@ nic_ru_get_packet(void *buf, size_t size)
 	}
 
 	memmove(buf, rfa[i].data, ret);
-
+	j = rfa_tail - 1;
+	if (j < 0) j = RING - 1;
 	rfa[rfa_tail].command = RECEIVE_FLAG_EL;
-	rfa[rfa_tail].status = 0;
+	// rfa[rfa_tail].status = 0;
 	rfa[rfa_tail].count = 0;
-	rfa[rfa_tail].padding = TBD_SIMPLE_ARRAY_ADDR;
 	rfa[rfa_tail].size = ETH_FRAME_SIZE;
+	rfa[j].command &= ~RECEIVE_FLAG_EL;
 	return ret;
 }
 
@@ -212,12 +204,11 @@ nic_recv_packet(void *buf, size_t size)
 	if ((ret = nic_ru_get_packet(buf, size)) == 0){
 		return 0;
 	}
-	cprintf("$$$$$$$$$ nic_recv_packet %d\n", ret);
-	pre = rfa_tail;
-	cbl[pre].status = 0;
+	// cprintf("$$$$$$$$$ nic_recv_packet %d\n", ret);
 	rfa_tail = (rfa_tail + 1) % RING;
 	
 	if (status & SCB_STAT_RU_NORES){
+		// cprintf("!!!!!!!!!! nic_recv_packet NO RESOURCES\n");
 		set_scb_command(SCB_RU_RESUME);
 	}
 	return ret;

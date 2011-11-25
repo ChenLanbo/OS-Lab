@@ -77,7 +77,7 @@
 #define RU_STATUS_OK (1 << 13)
 #define RU_COUNT_MASK ((1 << 14) - 1)
 
-#define RING 32
+#define RING 256
 #define TBD_SIMPLE_ARRAY_ADDR 0xffffffff
 
 

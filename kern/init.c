@@ -55,10 +55,10 @@ i386_init(void)
 	// Start fs.
 	ENV_CREATE(fs_fs);
 
-#if !defined(TEST_NO_NS)
+// #if !defined(TEST_NO_NS)
 	// Start ns.
 	ENV_CREATE(net_ns);
-#endif
+// #endif
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
@@ -77,8 +77,9 @@ i386_init(void)
 	// ENV_CREATE(user_pingpong);
 	// ENV_CREATE(user_fairness);
 	// ENV_CREATE(user_fairness);
-	ENV_CREATE(net_testinput);
+	// ENV_CREATE(net_testinput);
 	// ENV_CREATE(net_testoutput);
+	ENV_CREATE(user_httpd);
 #endif // TEST*
 
 	// Schedule and run the first user environment!

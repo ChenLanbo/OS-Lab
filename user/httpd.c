@@ -86,6 +86,7 @@ send_data(struct http_request *req, int fd)
 		if (r < 0){
 			return r;
 		}
+		cprintf("HTTP SERVER reads %d bytes\n", r);
 		if (r == 0){
 			break;
 		}
@@ -255,7 +256,7 @@ send_file(struct http_request *req)
 	// 3. get stat
 	stat(req->url, &s);
 	file_size = s.st_size;
-
+	cprintf("Transfer file %s %d\n", req->url, file_size);
 	if ((r = send_header(req, 200)) < 0)
 		goto end;
 

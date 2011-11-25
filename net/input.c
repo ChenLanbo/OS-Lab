@@ -22,7 +22,7 @@ input(envid_t ns_envid)
 		// nsipcbuf.pkt.jp_len = sys_net_recv(nsipcbuf.pkt.jp_data, 1518);
 		r = sys_net_recv(packet->jp_data, 1518);
 		packet->jp_len = r;
-		cprintf("-------------- NET INPUT get %d bytes\n", r);
+		// cprintf("-------------- NET INPUT get %d bytes\n", r);
 		if (packet->jp_len == 0){
 			sys_yield();
 		} else {

@@ -34,7 +34,7 @@ bc_reclaim(int blockno)
 	int x, y, num;
 	void *addr1;
 	pgfault_cnt++;
-	cprintf("bc_pgfault at block %d -- cnt %02d\n", blockno, pgfault_cnt);
+	// cprintf("bc_pgfault at block %d -- cnt %02d\n", blockno, pgfault_cnt);
 	if (pgfault_cnt < threshold){
 		return ;
 	}
