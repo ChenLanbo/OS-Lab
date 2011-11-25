@@ -110,27 +110,6 @@ nic_send_packet(void *buf, size_t size)
 	return ret;
 }
 
-/*int
-nic_ru_get_packet(void *buf, size_t size)
-{
-	int ret = size, i, j;
-	i = rfa_tail;
-	if ((rfa[i].status & RU_STATUS_C) == 0){
-		return 0;
-	}
-	if (ret > (rfa[i].count & RU_COUNT_MASK)){
-		ret = (rfa[i].count & RU_COUNT_MASK);
-	}
-	memmove(buf, rfa[i].data, ret);
-	// set to next rfd
-	rfa[i].command = RECEIVE_FLAG_EL;
-	rfa[i].status = 0;
-	rfa[i].count = 0;
-	j = (rfa_tail - 1 < 0 ? RING - 1 : rfa_tail - 1);
-	rfa[j].command &= ~RECEIVE_FLAG_EL;
-	return ret;
-}*/
-
 int
 nic_recv_packet(void *buf, size_t size)
 {
