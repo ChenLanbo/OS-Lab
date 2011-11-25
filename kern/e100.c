@@ -59,7 +59,7 @@ rfa_init()
 	for (i = 0; i < RING; i++){
 		cprintf("RFA_INIT: %d %d\n", i, rfa[i].status);
 	}
-	rfa_tail = 1;
+	rfa_tail = 0;
 }
 
 int
