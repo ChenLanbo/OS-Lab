@@ -76,7 +76,13 @@ duppage(envid_t envid, unsigned pn)
 	pte_t entry = vpt[pn];
 
 	// LAB 4: Your code here.
-	if ((entry & PTE_W) || (entry & PTE_COW)){
+	if (entry & PTE_SHARE){
+		// cprintf("DUPPAGE PTE_SHARE\n");
+		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), entry & PTE_USER)) < 0){
+			panic("sys_page_map error in duppage %e", r);
+		}
+	}
+	else if ((entry & PTE_W) || (entry & PTE_COW)){
 		// cprintf("copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0){
 			panic("sys_page_map error in duppage %e", r);

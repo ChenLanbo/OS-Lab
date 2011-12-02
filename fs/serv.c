@@ -70,7 +70,7 @@ openfile_alloc(struct OpenFile **o)
 	for (i = 0; i < MAXOPEN; i++) {
 		switch (pageref(opentab[i].o_fd)) {
 		case 0:
-			if ((r = sys_page_alloc(0, opentab[i].o_fd, PTE_P|PTE_U|PTE_W)) < 0)
+			if ((r = sys_page_alloc(0, opentab[i].o_fd, PTE_P|PTE_U|PTE_W|PTE_SHARE)) < 0)
 				return r;
 			/* fall through */
 		case 1:
@@ -165,7 +165,7 @@ try_open:
 
 	// Share the FD page with the caller
 	*pg_store = o->o_fd;
-	*perm_store = PTE_P|PTE_U|PTE_W;
+	*perm_store = PTE_P|PTE_U|PTE_W|PTE_SHARE;
 	return 0;
 }
 
@@ -223,7 +223,7 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	if ((r = openfile_lookup(envid, fd, &o)) < 0){
 		return r;
 	}
-	cprintf("o_fd ref: %d\n", pageref(o->o_fd));
+	// cprintf("o_fd ref: %d\n", pageref(o->o_fd));
 	if (pageref(o->o_fd) < 2){
 		return -E_INVAL;
 	}

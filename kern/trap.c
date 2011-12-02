@@ -223,6 +223,18 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
+	// LAB 7: Keyboard interface
+
+	if (tf->tf_trapno == IRQ_OFFSET + 1){
+		kbd_intr();
+		return ;
+	}
+
+	if (tf->tf_trapno == IRQ_OFFSET + 4){
+		serial_intr();
+		return ;
+	}
+
 	if (tf->tf_trapno == T_DIVIDE || tf->tf_trapno == T_ILLOP || tf->tf_trapno == T_GPFLT){
 		// cprintf("*************");
 		// return ;
@@ -288,8 +300,7 @@ trap(struct Trapframe *tf)
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
 	// Debug info
-	if (tf->tf_trapno != 48 && tf->tf_trapno != 32 && tf->tf_trapno != 14)
-		cprintf("Trapno %d\n", tf->tf_trapno);
+	// if (tf->tf_trapno != 48 && tf->tf_trapno != 32 && tf->tf_trapno != 14) cprintf("Trapno %d\n", tf->tf_trapno);
 	assert(!(read_eflags() & FL_IF));
 
 	// cprintf("Incoming TRAP frame at %p\n", tf);

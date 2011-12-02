@@ -277,6 +277,23 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 7: Your code here.
+	int i, j, pn, r;
+	for (i = 0; i < NPDENTRIES; i++){
+		if (vpd[i] == 0) continue;
+		if (i * PTSIZE >= UTOP) continue;
+		for (j = 0; j < NPTENTRIES; j++){
+			pn = i * NPTENTRIES + j;
+			if (!(vpt[pn] & PTE_P)) continue;
+			if (pn * PGSIZE >= UTOP) continue;
+
+			if (vpt[pn] & PTE_SHARE){
+				// cprintf("PTE_SHARE va %08x UTOP %08x\n", pn * PGSIZE, UTOP);
+				if ((r = sys_page_map(0, (void *)(pn * PGSIZE), child, (void *)(pn * PGSIZE), vpt[pn] & PTE_USER)) < 0){
+					panic("sys_page_map error in copy_shared_pages %e", r);
+				}
+			}
+		}
+	}
 	return 0;
 }
 
