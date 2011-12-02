@@ -205,7 +205,7 @@ ssize_t
 read(int fdnum, void *buf, size_t n)
 {
 	int r;
-	struct Dev *dev;
+	struct Dev *dev = NULL;
 	struct Fd *fd;
 
 	if ((r = fd_lookup(fdnum, &fd)) < 0
@@ -217,7 +217,8 @@ read(int fdnum, void *buf, size_t n)
 	}
 	if (!dev->dev_read)
 		return -E_NOT_SUPP;
-	return (*dev->dev_read)(fd, buf, n);
+	r = (*dev->dev_read)(fd, buf, n);
+	return r;
 }
 
 ssize_t

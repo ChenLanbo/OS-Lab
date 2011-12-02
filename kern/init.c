@@ -15,6 +15,8 @@
 #include <kern/time.h>
 #include <kern/pci.h>
 
+// LAB 6
+#include <kern/e100.h>
 
 void
 i386_init(void)
@@ -63,11 +65,29 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
+	// <<<<<<< HEAD
 	ENV_CREATE(user_icode);
+	// =======
+	// ENV_CREATE(net_testoutput);
+	// ENV_CREATE(user_echosrv);
+	// ENV_CREATE(user_httpd);
+	// ENV_CREATE(user_writemotd);
+	// ENV_CREATE(user_testfile);
+	// ENV_CREATE(user_icode);
+	// ENV_CREATE(user_primes);
+	// ENV_CREATE(user_testfile);
+	ENV_CREATE(user_icode);
+	// ENV_CREATE(user_pingpong);
+	// ENV_CREATE(user_fairness);
+	ENV_CREATE(user_echosrv);
+	// ENV_CREATE(net_testinput);
+	// ENV_CREATE(net_testoutput);
+	// ENV_CREATE(user_httpd);
+	// >>>>>>> lab6
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
-	kbd_intr();
+	// kbd_intr();
 
 	// Schedule and run the first user environment!
 	sched_yield();
