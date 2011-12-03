@@ -88,13 +88,13 @@ spawn(const char *prog, const char **argv)
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
-	cprintf("SPAWN open done fd %d!!!\n", fd);
+	cprintf("SPAWN open done fd %d!!! --- %s\n", fd, prog);
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
-	if (read(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
+	if ((r = read(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)
 	    || elf->e_magic != ELF_MAGIC) {
 		close(fd);
-		cprintf("elf magic %08x want %08x\n", elf->e_magic, ELF_MAGIC);
+		cprintf("elf magic %08x want %08x --- %d bytes\n", elf->e_magic, ELF_MAGIC, r);
 		return -E_NOT_EXEC;
 	}
 

@@ -38,6 +38,7 @@ bc_reclaim(int blockno)
 	if (pgfault_cnt < threshold){
 		return ;
 	}
+	cprintf("CALL bc_reclaim\n");
 	pgfault_cnt = 0;
 	for (x = 0; x < BLKBITSIZE / 32; x++){
 		// All blocks are free
