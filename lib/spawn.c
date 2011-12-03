@@ -88,7 +88,7 @@ spawn(const char *prog, const char **argv)
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
-
+	cprintf("SPAWN open done fd %d!!!\n", fd);
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
 	if (read(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)

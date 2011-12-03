@@ -26,7 +26,7 @@ runcmd(char* s)
 
 	pipe_child = 0;
 	gettoken(s, 0);
-	
+	cprintf("*** runcmd ***\n");
 again:
 	argc = 0;
 	while (1) {
@@ -141,6 +141,7 @@ runit:
 	}
 
 	// Spawn the command!
+	cprintf("Spawn the command!\n");
 	if ((r = spawn(argv[0], (const char**) argv)) < 0)
 		cprintf("spawn %s: %e\n", argv[0], r);
 

@@ -136,11 +136,14 @@ int
 dev_lookup(int dev_id, struct Dev **dev)
 {
 	int i;
-	for (i = 0; devtab[i]; i++)
+	for (i = 0; devtab[i]; i++){
 		if (devtab[i]->dev_id == dev_id) {
 			*dev = devtab[i];
 			return 0;
 		}
+	}
+	for (i = 0; devtab[i]; i++)
+		cprintf("dev_lookup %x %x\n", devtab[i]->dev_id, dev_id);
 	cprintf("[%08x] unknown device type %d\n", env->env_id, dev_id);
 	*dev = 0;
 	return -E_INVAL;
