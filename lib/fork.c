@@ -208,7 +208,7 @@ sfork(void)
 	}
 
 	// plain copy page mappings except USTACK, UXSTACK
-	for (itr = UTEXT; itr < USTACKTOP - PGSIZE; itr += PGSIZE){
+	for (itr = 0; itr < USTACKTOP - PGSIZE; itr += PGSIZE){
 		if (!(vpd[VPD(itr)] & PTE_P)){
 			continue;
 		}

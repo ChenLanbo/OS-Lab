@@ -1,7 +1,7 @@
 #include <inc/lib.h>
 
 #define BUFSIZ 1024		/* Find the buffer overrun bug! */
-int debug = 0;
+int debug = 1;
 
 
 // gettoken(s, 0) prepares gettoken for subsequent calls and returns 0.
@@ -141,10 +141,10 @@ runit:
 	}
 
 	// Spawn the command!
-	cprintf("Spawn the command!\n");
+	cprintf("Shell spawns the command: %s\n", argv[0]);
 	if ((r = spawn(argv[0], (const char**) argv)) < 0)
 		cprintf("spawn %s: %e\n", argv[0], r);
-
+	cprintf("Shell done\n");
 	// In the parent, close all file descriptors and wait for the
 	// spawned command to exit.
 	close_all();
