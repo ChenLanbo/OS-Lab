@@ -156,7 +156,7 @@ fork(void)
 	}
 
 	// copy-on-write all pages except UXSTACK
-	for (itr = UTEXT; itr < UXSTACKTOP - PGSIZE; itr += PGSIZE){
+	for (itr = 0; itr < UXSTACKTOP - PGSIZE; itr += PGSIZE){
 		if (!(vpd[VPD(itr)] & PTE_P)){
 			continue;
 		}

@@ -97,11 +97,13 @@ spawn(const char *prog, const char **argv)
 		cprintf("elf magic %08x want %08x --- %d bytes\n", elf->e_magic, ELF_MAGIC, r);
 		return -E_NOT_EXEC;
 	}
+	// cprintf("ELF_MAGIC GOOD\n");
 
 	// Create new child environment
 	if ((r = sys_exofork()) < 0)
 		return r;
 	child = r;
+	// cprintf("SYS_EXOFORK GOOD\n");
 
 	// Set up trap frame, including initial stack.
 	child_tf = envs[ENVX(child)].env_tf;
@@ -109,22 +111,25 @@ spawn(const char *prog, const char **argv)
 
 	if ((r = init_stack(child, argv, &child_tf.tf_esp)) < 0)
 		return r;
+	// cprintf("INIT_STACK GOOD\n");
 
 	// Set up program segments as defined in ELF header.
 	ph = (struct Proghdr*) (elf_buf + elf->e_phoff);
 	for (i = 0; i < elf->e_phnum; i++, ph++) {
 		if (ph->p_type != ELF_PROG_LOAD)
 			continue;
+		// cprintf("MAP_SEGMENT %d start\n", i);
 		perm = PTE_P | PTE_U;
 		if (ph->p_flags & ELF_PROG_FLAG_WRITE)
 			perm |= PTE_W;
 		if ((r = map_segment(child, ph->p_va, ph->p_memsz, 
 				     fd, ph->p_filesz, ph->p_offset, perm)) < 0)
 			goto error;
+		// cprintf("MAP_SEGMENT %d end\n", i);
 	}
 	close(fd);
 	fd = -1;
-
+	// cprintf("MAP_SEGMENT GOOD\n");
 	// Copy shared library state.
 	if ((r = copy_shared_pages(child)) < 0)
 		panic("copy_shared_pages: %e", r);
@@ -187,10 +192,11 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	if ((void*) (argv_store - 2) < (void*) UTEMP)
 		return -E_NO_MEM;
 
+	cprintf("INIT_STACK 0\n");
 	// Allocate the single stack page at UTEMP.
 	if ((r = sys_page_alloc(0, (void*) UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 		return r;
-
+	cprintf("INIT_STACK 1\n");
 
 	//	* Initialize 'argv_store[i]' to point to argument string i,
 	//	  for all 0 <= i < argc.
@@ -227,6 +233,8 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 		goto error;
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
 		goto error;
+
+	cprintf("INIT_STACK 2\n");
 
 	return 0;
 
@@ -266,7 +274,9 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 				return r;
 			if ((r = sys_page_map(0, UTEMP, child, (void*) (va + i), perm)) < 0)
 				panic("spawn: sys_page_map data: %e", r);
+			// cprintf("INFO: map_segment %d\n", i);
 			sys_page_unmap(0, UTEMP);
+			// cprintf("INFO: map_segment %d done\n", i);
 		}
 	}
 	return 0;

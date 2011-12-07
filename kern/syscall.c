@@ -78,6 +78,7 @@ sys_yield(void)
 // Returns envid of new environment, or < 0 on error.  Errors are:
 //	-E_NO_FREE_ENV if no free environment is available.
 //	-E_NO_MEM on memory exhaustion.
+
 static envid_t
 sys_exofork(void)
 {
@@ -155,6 +156,7 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	struct Env *env;
 	pte_t *entry;
 
+	user_mem_assert(curenv, tf, sizeof(struct Trapframe), 0);
 	if (envid2env(envid, &env, 1) != 0){
 		return -E_BAD_ENV;
 	}
@@ -165,6 +167,12 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	}
 
 	env->env_tf = *tf;
+	env->env_tf.tf_ds |= 3;
+	env->env_tf.tf_es |= 3;
+	env->env_tf.tf_ss |= 3;
+	env->env_tf.tf_cs |= 3;
+	env->env_tf.tf_eflags |= FL_IF;
+	env->env_tf.tf_eflags &= ~(FL_IOPL_MASK);
 	return 0;
 }
 
@@ -427,11 +435,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if ((r = envid2env(envid, &env, 0)) < 0){
 		return -E_BAD_ENV;
 	}
-	// cprintf("env is good\n");
 	// Target not blocked, waiting for ipc
-	if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving){
+	/*if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving){
 		return -E_IPC_NOT_RECV;
-	}
+	}*/
 
 	// Check srcva
 	if ((uint32_t)srcva < UTOP){
@@ -460,9 +467,11 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 		}
 	}
-
+	if (env->env_ipc_recving == 0){
+		return -E_IPC_NOT_RECV;
+	}
 	// Env is not blocked for ipc, add the message into kernel's message queue
-	if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving == 0){
+	/*if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving == 0){
 		// add to the message queue
 		if (myipc_queue_push(env->env_id, curenv->env_id, value, srcva, perm) < 0){
 			return -E_IPC_NOT_RECV;
@@ -471,7 +480,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		curenv->env_status = ENV_NOT_RUNNABLE;
 		// return -E_IPC_NOT_RECV;
 		return 0;
-	}
+	}*/
 	// Debug info
 	// cprintf("%x sys_ipc_try_send: target %x blocked, we can go on\n", sys_getenvid(), env->env_id);
 
@@ -524,11 +533,11 @@ sys_ipc_recv(void *dstva)
 	struct Myipc *message;
 	struct Env *srcenv, *dstenv;
 	
-	message = myipc_queue_pop(sys_getenvid());
+	/*message = myipc_queue_pop(sys_getenvid());
 	if (message != NULL){
-		/* if ((r = envid2env(message->ipc_to, &dstenv, 0)) < 0){
-			return -E_BAD_ENV;
-		}*/
+		// if ((r = envid2env(message->ipc_to, &dstenv, 0)) < 0){
+		//	return -E_BAD_ENV;
+		// }
 		// cprintf("Message %x\n", message->ipc_from);
 		if ((r = envid2env(message->ipc_from, &srcenv, 0)) < 0){
 			return -E_BAD_ENV;
@@ -554,7 +563,7 @@ sys_ipc_recv(void *dstva)
 		// Debug info
 		return 0;
 	}
-	// cprintf("*** No message ***\n");
+	// cprintf("*** No message ***\n");*/
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_ipc_recving = 1;
 
