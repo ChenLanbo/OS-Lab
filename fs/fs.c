@@ -62,6 +62,18 @@ alloc_block(void)
 
 	// LAB 5: Your code here.
 	uint32_t i, j, blockno;
+	/*uint32_t *cb, *eb;
+	eb = bitmap + super->s_nblocks / 32;
+	for (cb = bitmap; cb < eb; cb++){
+		if (*cb == 0) continue;
+		for (i = 0; i < 32; i++){
+			if (*cb & (1 << i)){
+				*cb &= ~(1 << i);
+				return (cb - bitmap) * 32 + i;
+			}
+		}
+	}
+	return -E_NO_DISK;*/
 	for (i = 0; i < BLKBITSIZE / 32; i++){
 		if ((bitmap[i] & 0xffffffff) != 0){
 			break;
@@ -171,7 +183,7 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 		f->f_indirect = r;
 		// Clear this indirect block
 		memset(diskaddr(r), 0, BLKSIZE);
-		flush_block(diskaddr(r));
+		// flush_block(diskaddr(r));
 	}
 
 	// Remember fileno - NDIRECT
@@ -208,9 +220,9 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 		}
 		*pblkno = r;
 		// Clear this block
-		memset(diskaddr(r), 0, BLKSIZE);
+		// memset(diskaddr(r), 0, BLKSIZE);
 		// flush this empty block into disk
-		flush_block(diskaddr(r));
+		// flush_block(diskaddr(r));
 	}
 	*blk = diskaddr(*pblkno);
 	return 0;
@@ -383,6 +395,7 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 	int r, bn;
 	off_t pos;
 	char *blk;
+	// void *org = buf;
 
 	if (offset >= f->f_size)
 		return 0;
@@ -397,7 +410,14 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 		pos += bn;
 		buf += bn;
 	}
-
+	/*if (count > 4){
+		cprintf("fs/fs.c get %d bytes %x: ", count, org);
+		for (r = 0; r < 16; r++){
+			cprintf("%02x ", ((unsigned char *)org)[r]);
+		}
+		cprintf("\n");
+	}*/
+	
 	return count;
 }
 

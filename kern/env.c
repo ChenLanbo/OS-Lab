@@ -271,9 +271,9 @@ segment_alloc(struct Env *e, void *va, size_t len)
 			panic("No memory available");
 		}
 		memset(page2kva(p), 0, PGSIZE);
-		p->pp_ref = 1;
+		// p->pp_ref = 1;
 
-		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W);
+		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W | PTE_P);
 	}
 
 	// Debug info
@@ -345,6 +345,18 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
 	eph = ph + ((struct Elf *)binary)->e_phnum;
 
+	/*for ( ; ph < eph; ph++){
+		if (ph->p_filesz > ph->p_memsz)
+			panic("invalid binary");
+		if (ph->p_type == ELF_PROG_LOAD)
+			segment_alloc(e, (void *)ph->p_va, ph->p_memsz);
+	}
+
+	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
+	for ( ; ph < eph; ph++){
+		if (ph->p_type == ELF_PROG_LOAD){
+		}
+	}*/
 	// Load ELF
 	for ( ; ph < eph; ph++){
 		// loadable

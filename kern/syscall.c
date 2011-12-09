@@ -96,7 +96,6 @@ sys_exofork(void)
 	if ((ret = env_alloc(&newenv, curenv->env_id)) < 0){
 		return ret;
 	}
-	// cprintf("Child %d created\n", newenv->env_id);
 	// set the status to be ENV_NOT_RUNNABLE
 	newenv->env_status = ENV_NOT_RUNNABLE;
 
@@ -244,29 +243,28 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_INVAL;
 	}
 
-	// Check perm
-	allowed_perm = PTE_U | PTE_P;
-	if ((perm & allowed_perm) != allowed_perm){
+	if (!(perm & PTE_U) || !(perm & PTE_P) || perm != (perm & PTE_USER)){
 		return -E_INVAL;
+	}
+	// Check perm
+	/*allowed_perm = PTE_U | PTE_P;
+	if ((perm & allowed_perm) != allowed_perm){
 	}
 	allowed_perm |= PTE_W | PTE_AVAIL;
 	// Check if there are other permissions
 	if ((perm ^ (perm & allowed_perm)) != 0){
 		return -E_INVAL;
-	}
-	// cprintf("sys_page_alloc **********\n");
-	// alloc a physical page
-	if (page_alloc(&pp) != 0){
+	}*/
+	if (page_alloc(&pp) < 0){
 		return -E_NO_MEM;
 	}
-	memset(page2kva(pp), 0, PGSIZE);
-	// pp->pp_ref = 1;
-
+	// cprintf("***************** alloc page no.%d\n", page2ppn(pp));
 	// insert into the page table of env
 	if (page_insert(env->env_pgdir, pp, va, perm | PTE_P) != 0){
 		page_free(pp);
 		return -E_NO_MEM;
 	}
+	memset(page2kva(pp), 0, PGSIZE);
 
 	return 0;
 	// panic("sys_page_alloc not implemented");
@@ -302,17 +300,15 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	// LAB 4: Your code here.
 	struct Env *srcenv, *dstenv;
 	pte_t *srcentry, *dstentry;
+	struct Page *page;
 	int allowed_perm;
 
 	// Get env
-	if (envid2env(srcenvid, &srcenv, 0) != 0){
+	if (envid2env(srcenvid, &srcenv, 0) < 0 || envid2env(dstenvid, &dstenv, 0) < 0){
 		return -E_BAD_ENV;
 	}
-	if (envid2env(dstenvid, &dstenv, 0) != 0){
-		return -E_BAD_ENV;
-	}
+
 	// Debug
-	// cprintf("sys_page_map *** src %x dst %x\n", srcenv->env_id, dstenv->env_id);
 	// check the validity of srcva, dstva
 	if ((uint32_t)srcva >= UTOP || (uint32_t)dstva >= UTOP){
 		return -E_INVAL;
@@ -321,7 +317,19 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 	}
 
-	srcentry = pgdir_walk(srcenv->env_pgdir, srcva, 0);
+	if (!(perm & PTE_U) || !(perm & PTE_P) || perm != (perm & PTE_USER)){
+		return -E_INVAL;
+	}
+
+	page = page_lookup(srcenv->env_pgdir, srcva, &srcentry);
+	if (page == NULL){
+		return -E_INVAL;
+	}
+	if (!(*srcentry & PTE_W) && (perm & PTE_W)){
+		return -E_INVAL;
+	}
+
+	/*srcentry = pgdir_walk(srcenv->env_pgdir, srcva, 0);
 	if (srcentry == NULL){
 		return -E_INVAL;
 	}
@@ -340,11 +348,12 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 	}
 
-	/*dstentry = pgdir_walk(dstenv->env_pgdir, dstva, 1);
+	dstentry = pgdir_walk(dstenv->env_pgdir, dstva, 1);
 	if (dstentry == NULL){
 		return -E_NO_MEM;
 	}*/
-	if (page_insert(dstenv->env_pgdir, pa2page(PTE_ADDR(*srcentry)), dstva, perm) < 0){
+
+	if (page_insert(dstenv->env_pgdir, page, dstva, perm) < 0){
 		return -E_NO_MEM;
 	}
 	return 0;
@@ -428,9 +437,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	int allowed_perm;
 	struct Env *env;
 	pte_t *entry;
+	struct Page *pp;
 	
 	// Debug info
-	// cprintf("%x calls sys_ipc_try_send to %x\n", sys_getenvid(), envid);
+	// cprintf("[env %x] calls sys_ipc_try_send to [env %x]\n", curenv->env_id, envid);
 	// Check envid
 	if ((r = envid2env(envid, &env, 0)) < 0){
 		return -E_BAD_ENV;
@@ -439,14 +449,20 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	/*if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving){
 		return -E_IPC_NOT_RECV;
 	}*/
+	if (!env->env_ipc_recving){
+		return -E_IPC_NOT_RECV;
+	}
 
 	// Check srcva
 	if ((uint32_t)srcva < UTOP){
 		if ((uint32_t)srcva % PGSIZE != 0){
 			return -E_INVAL;
-		}	
+		}
+		if (!(perm & PTE_U) || !(perm & PTE_P) || perm != (perm & PTE_USER)){
+			return -E_INVAL;
+		}
 		// check perm
-		allowed_perm = PTE_U | PTE_P;
+		/*allowed_perm = PTE_U | PTE_P;
 		if ((perm & allowed_perm) != allowed_perm){
 			return -E_INVAL;
 		}
@@ -454,11 +470,12 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		// Check if there are other permissions
 		if ((perm ^ (perm & allowed_perm)) != 0){
 			return -E_INVAL;
-		}
+		}*/
 
 		// Get mapped entry of srcva
 		entry = pgdir_walk(curenv->env_pgdir, srcva, 0);
 		if (entry == NULL){
+			cprintf("sys_ipc_try_send pgdir_walk NULL\n");
 			return -E_INVAL;
 		}
 
@@ -466,9 +483,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if ((perm & PTE_W) && (*entry & PTE_W) == 0){
 			return -E_INVAL;
 		}
-	}
-	if (env->env_ipc_recving == 0){
-		return -E_IPC_NOT_RECV;
+		if ((uint32_t)env->env_ipc_dstva < UTOP){
+			pp = pa2page(PTE_ADDR(*entry));
+			if ((r = page_insert(env->env_pgdir, pp, env->env_ipc_dstva, perm)) < 0){
+				return r;
+			}
+			env->env_ipc_perm = perm;
+		}
 	}
 	// Env is not blocked for ipc, add the message into kernel's message queue
 	/*if (env->env_status == ENV_RUNNABLE && env->env_ipc_recving == 0){
@@ -490,7 +511,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	env->env_ipc_value = value;
 	env->env_status = ENV_RUNNABLE;
 
-	if ((uint32_t)srcva < UTOP){
+	/*if ((uint32_t)srcva < UTOP){
 		//env->env_ipc_dstva = srcva;
 		if ((uint32_t)env->env_ipc_dstva < UTOP){
 			if ((r = sys_page_map(0, srcva, envid, env->env_ipc_dstva, perm)) < 0){
@@ -502,7 +523,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		}
 	} else {
 		env->env_ipc_perm = 0;
-	}
+	}*/
 
 	// Debug info
 	// cprintf("%x sys_ipc_try_send succeeds\n", sys_getenvid());

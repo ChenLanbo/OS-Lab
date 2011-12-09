@@ -1,7 +1,7 @@
 #include <inc/lib.h>
 
 #define BUFSIZ 1024		/* Find the buffer overrun bug! */
-int debug = 1;
+int debug = 0;
 
 
 // gettoken(s, 0) prepares gettoken for subsequent calls and returns 0.
@@ -26,7 +26,7 @@ runcmd(char* s)
 
 	pipe_child = 0;
 	gettoken(s, 0);
-	cprintf("*** runcmd ***\n");
+	// cprintf("*** runcmd ***\n");
 again:
 	argc = 0;
 	while (1) {
@@ -141,10 +141,10 @@ runit:
 	}
 
 	// Spawn the command!
-	cprintf("Shell spawns the command: %s\n", argv[0]);
+	// cprintf("Shell spawns the command: %s\n", argv[0]);
 	if ((r = spawn(argv[0], (const char**) argv)) < 0)
 		cprintf("spawn %s: %e\n", argv[0], r);
-	cprintf("Shell done\n");
+	// cprintf("Shell done\n");
 	// In the parent, close all file descriptors and wait for the
 	// spawned command to exit.
 	close_all();
@@ -307,7 +307,7 @@ umain(int argc, char **argv)
 		if ((r = fork()) < 0)
 			panic("fork: %e", r);
 		if (debug)
-			cprintf("FORK: %d\n", r);
+			cprintf("FORK: %x %x\n", r, sys_getenvid());
 		if (r == 0) {
 			runcmd(buf);
 			exit();

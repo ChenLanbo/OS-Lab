@@ -88,13 +88,12 @@ spawn(const char *prog, const char **argv)
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
-	cprintf("SPAWN open done fd %d!!! --- %s\n", fd, prog);
+	// cprintf("------- SPAWN open done fd %d!!! --- %s\n", fd, prog);
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
 	if ((r = read(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)
 	    || elf->e_magic != ELF_MAGIC) {
 		close(fd);
-		cprintf("elf magic %08x want %08x --- %d bytes\n", elf->e_magic, ELF_MAGIC, r);
 		return -E_NOT_EXEC;
 	}
 	// cprintf("ELF_MAGIC GOOD\n");
@@ -103,7 +102,7 @@ spawn(const char *prog, const char **argv)
 	if ((r = sys_exofork()) < 0)
 		return r;
 	child = r;
-	// cprintf("SYS_EXOFORK GOOD\n");
+	// cprintf("SYS_EXOFORK GOOD %x %s\n", child, prog);
 
 	// Set up trap frame, including initial stack.
 	child_tf = envs[ENVX(child)].env_tf;
@@ -118,18 +117,16 @@ spawn(const char *prog, const char **argv)
 	for (i = 0; i < elf->e_phnum; i++, ph++) {
 		if (ph->p_type != ELF_PROG_LOAD)
 			continue;
-		// cprintf("MAP_SEGMENT %d start\n", i);
 		perm = PTE_P | PTE_U;
 		if (ph->p_flags & ELF_PROG_FLAG_WRITE)
 			perm |= PTE_W;
 		if ((r = map_segment(child, ph->p_va, ph->p_memsz, 
 				     fd, ph->p_filesz, ph->p_offset, perm)) < 0)
 			goto error;
-		// cprintf("MAP_SEGMENT %d end\n", i);
 	}
 	close(fd);
 	fd = -1;
-	// cprintf("MAP_SEGMENT GOOD\n");
+
 	// Copy shared library state.
 	if ((r = copy_shared_pages(child)) < 0)
 		panic("copy_shared_pages: %e", r);
@@ -139,7 +136,6 @@ spawn(const char *prog, const char **argv)
 
 	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
 		panic("sys_env_set_status: %e", r);
-
 	return child;
 
 error:
@@ -192,11 +188,9 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	if ((void*) (argv_store - 2) < (void*) UTEMP)
 		return -E_NO_MEM;
 
-	cprintf("INIT_STACK 0\n");
 	// Allocate the single stack page at UTEMP.
 	if ((r = sys_page_alloc(0, (void*) UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 		return r;
-	cprintf("INIT_STACK 1\n");
 
 	//	* Initialize 'argv_store[i]' to point to argument string i,
 	//	  for all 0 <= i < argc.
@@ -234,7 +228,6 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
 		goto error;
 
-	cprintf("INIT_STACK 2\n");
 
 	return 0;
 
@@ -258,7 +251,6 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 		filesz += i;
 		fileoffset -= i;
 	}
-
 	for (i = 0; i < memsz; i += PGSIZE) {
 		if (i >= filesz) {
 			// allocate a blank page
@@ -272,11 +264,10 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 				return r;
 			if ((r = read(fd, UTEMP, MIN(PGSIZE, filesz-i))) < 0)
 				return r;
+			// cprintf("INFO: map_segment %d --- %x [va %08x]\n", i, child, (void *)(va + i));
 			if ((r = sys_page_map(0, UTEMP, child, (void*) (va + i), perm)) < 0)
 				panic("spawn: sys_page_map data: %e", r);
-			// cprintf("INFO: map_segment %d\n", i);
 			sys_page_unmap(0, UTEMP);
-			// cprintf("INFO: map_segment %d done\n", i);
 		}
 	}
 	return 0;
@@ -288,7 +279,8 @@ copy_shared_pages(envid_t child)
 {
 	// LAB 7: Your code here.
 	int i, j, pn, r;
-	for (i = 0; i < NPDENTRIES; i++){
+	void *addr;
+	/*for (i = 0; i < NPDENTRIES; i++){
 		if (vpd[i] == 0) continue;
 		if (i * PTSIZE >= UTOP) continue;
 		for (j = 0; j < NPTENTRIES; j++){
@@ -303,7 +295,21 @@ copy_shared_pages(envid_t child)
 				}
 			}
 		}
+	}*/
+	while (pn < ((UXSTACKTOP - PGSIZE) >> PGSHIFT)){
+		if (pn % NPTENTRIES == 0 && !(vpd[pn >> 10] & PTE_P)){
+			pn += NPTENTRIES;
+			continue;
+		}
+		if ((vpt[pn] & PTE_P) && (vpt[pn] & PTE_SHARE)){
+			addr = (void *)(pn << PGSHIFT);
+			r = sys_page_map(0, addr, child, addr, vpt[pn] & PTE_USER);
+			if (r < 0)
+				return r;
+		}
+		pn++;
 	}
+
 	return 0;
 }
 

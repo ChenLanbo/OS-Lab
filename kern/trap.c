@@ -408,7 +408,7 @@ page_fault_handler(struct Trapframe *tf)
 		// if (fault_va >= USTACKTOP - PGSIZE && fault_va < USTACKTOP) cprintf("pgfautl on stack\n");
 		env_run(curenv);
 	} else {
-		cprintf("curenv->env_pgfault_upcall is NULL\n");
+		cprintf("ERROR: %x env_pgfault_upcall is NULL\n", curenv->env_id);
 	}
 
 	// Destroy the environment that caused the fault.

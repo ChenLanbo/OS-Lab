@@ -19,7 +19,6 @@ pgfault(struct UTrapframe *utf)
 	uint32_t err = utf->utf_err;
 	int r;
 
-	// cprintf("pgfault %08x\n", sys_getenvid());
 	// Check that the faulting access was (1) a write, and (2) to a
 	// copy-on-write page.  If not, panic.
 	// Hint:
@@ -28,6 +27,7 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 	// Check permissions
+	// cprintf("<<<<<< pgfault %08x %d pa[%x] %x >>>>>>\n", sys_getenvid(), err, (uint32_t)addr >> PGSHIFT, vpt[VPN(addr)]);
 	if (!(err & FEC_WR)){
 		panic("no write access");
 	}
@@ -51,11 +51,18 @@ pgfault(struct UTrapframe *utf)
 	}
 	pageaddr = ROUNDDOWN(addr, PGSIZE);
 	memmove((void *)PFTEMP, pageaddr, PGSIZE);
+	/*if ((r = sys_page_unmap(0, pageaddr)) < 0){
+		panic("sys_page_unmap error %e", r);
+	}*/
 	if ((r = sys_page_map(0, (void *)PFTEMP, 0, pageaddr, PTE_U | PTE_P | PTE_W)) < 0){
 		panic("sys_page_map error %e", r);
 	}
 
+	// cprintf("<<<<<<< pgfault done [%x %x] tmp %x>>>>>>>>\n", pageaddr, vpt[VPN(pageaddr)], vpt[VPN(PFTEMP)]);
 	// panic("pgfault not implemented");
+	if ((r = sys_page_unmap(0, PFTEMP)) < 0){
+		panic("sys_page_unmap error %e", r);
+	}
 }
 
 //
@@ -166,7 +173,9 @@ fork(void)
 		if (!(vpt[VPN(itr)] & PTE_U)){
 			continue;
 		}
-		duppage(child, VPN(itr));
+		if ((r = duppage(child, VPN(itr))) < 0){
+			panic("duppage: %e", r);
+		}
 	}
 
 	if ((r = sys_page_alloc(child, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P)) < 0){

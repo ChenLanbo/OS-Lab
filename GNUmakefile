@@ -130,17 +130,27 @@ include net/Makefrag
 
 PORT7	:= $(shell expr $(GDBPORT) + 1)
 PORT80	:= $(shell expr $(GDBPORT) + 2)
+PORT128 := $(shell expr $(GDBPORT) + 3)
+PORT129 := $(shell expr $(GDBPORT) + 4)
 
 IMAGES = $(OBJDIR)/kern/kernel.img $(OBJDIR)/fs/fs.img
 QEMUOPTS = -no-kvm -hda $(OBJDIR)/kern/kernel.img -hdb $(OBJDIR)/fs/fs.img -serial mon:stdio \
 	   -net user -net nic,model=i82559er -redir tcp:$(PORT7)::7 \
-	   -redir tcp:$(PORT80)::80 -redir udp:$(PORT7)::7 $(QEMUEXTRA)
+	   -redir tcp:$(PORT80)::80 -redir udp:$(PORT7)::7 \
+	   -redir tcp:$(PORT128)::128 $(QEMUEXTRA)
+
+QEMUOPTS1 = -no-kvm -hda $(OBJDIR)/kern/kernel.img -hdb $(OBJDIR)/fs/fs.img -serial mon:stdio \
+	   -net user -net nic,model=i82559er \
+	   -redir tcp:$(PORT129)::129 $(QEMUEXTRA)
 
 .gdbinit: .gdbinit.tmpl
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
 
 qemu: $(IMAGES)
 	$(QEMU) $(QEMUOPTS)
+
+qemu1: $(IMAGES)
+	$(QEMU) $(QEMUOPTS1)
 
 qemu-nox: $(IMAGES)
 	@echo "***"
@@ -220,6 +230,7 @@ run-%:
 which-ports:
 	@echo "Local port $(PORT7) forwards to JOS port 7 (echo server)"
 	@echo "Local port $(PORT80) forwards to JOS port 80 (web server)"
+	@echo "Local port $(PORT128) forwards to JOS port 128 (nfs server)"
 
 nc-80:
 	nc localhost $(PORT80)

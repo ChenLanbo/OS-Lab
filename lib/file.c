@@ -82,7 +82,6 @@ open(const char *path, int mode)
 	pfd->fd_dev_id = 'f';
 	// Debug info
 	// cprintf("Page ref %d\n", pageref(pfd));
-	// cprintf("lib/file.c: OPEN DONE\n");
 	return fd2num(pfd);
 	// panic("open not implemented");
 }

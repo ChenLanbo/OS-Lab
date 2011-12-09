@@ -224,9 +224,7 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		return r;
 	}
 	// cprintf("o_fd ref: %d\n", pageref(o->o_fd));
-	if (pageref(o->o_fd) < 2){
-		return -E_INVAL;
-	}
+	// if (pageref(o->o_fd) < 2){ return -E_INVAL; }
 	// cprintf("serve_read: %d %d\n", fd, count);
 
 	if ((r = file_read(o->o_file, ret->ret_buf, count, o->o_fd->fd_offset)) < 0){

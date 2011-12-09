@@ -65,9 +65,7 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
-	// <<<<<<< HEAD
 	ENV_CREATE(user_icode);
-	// =======
 	// ENV_CREATE(net_testoutput);
 	// ENV_CREATE(user_echosrv);
 	// ENV_CREATE(user_httpd);
@@ -83,7 +81,6 @@ i386_init(void)
 	// ENV_CREATE(net_testinput);
 	// ENV_CREATE(net_testoutput);
 	// ENV_CREATE(user_testfdsharing);
-	// >>>>>>> lab6
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.

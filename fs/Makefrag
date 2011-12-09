@@ -32,13 +32,16 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/testpteshare \
 			$(OBJDIR)/user/testshell \
 			$(OBJDIR)/user/hello \
+			$(OBJDIR)/user/httpd \
+			$(OBJDIR)/user/nfs \
 			$(OBJDIR)/user/testmalloc
 
 FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
 			fs/lorem \
 			fs/script \
 			fs/testshell.key \
-			fs/testshell.sh
+			fs/testshell.sh \
+			fs/helloworld
 
 
 FSIMGFILES := $(FSIMGTXTFILES) $(USERAPPS)
