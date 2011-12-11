@@ -1,8 +1,6 @@
 #include <inc/nfs-server.h>
-
+#include <inc/assert.h>
 #define DEBUG_NFS_SERVER 1
-// #define LOG1(a, ...) (a ? cprintf(__VAR_ARGS__) : 0)
-#define LOG1(a, ...) (a ? cprintf(__VA_ARGS__) : 0)
 
 static void
 die(char *m)
@@ -34,14 +32,14 @@ exe_mount(int sockfd, char *req)
 	char buffer[BUFFSIZE];
 	struct Stat *pstat = malloc(sizeof(struct Stat));
 
-	LOG1(DEBUG_NFS_SERVER, "In exe_mount %s\n", req);
-
+	LOG(DEBUG_NFS_SERVER, "\nIn exe_mount %s\n", req);
 	memset(buffer, 0, sizeof(buffer));
-	// if ((filefd = open(path, O_RDONLY)) <= 0)
-	if (stat(req, pstat) < 0)
+	if (stat(req, pstat) < 0){
 		r = 0;
-	else 
+	}
+	else {
 		r = 1;
+	}
 
 	if (r){
 		snprintf(buffer, BUFFSIZE, "%d %c %d", r, (pstat->st_isdir ? 'D' : 'F'), pstat->st_size);
@@ -49,8 +47,7 @@ exe_mount(int sockfd, char *req)
 	else {
 		snprintf(buffer, BUFFSIZE, "%d", r);
 	}
-
-	LOG1(DEBUG_NFS_SERVER, "Mount %s: %d --- %s\n", req, r, buffer);
+	LOG(DEBUG_NFS_SERVER, "\nMount %s: %d --- %s\n", req, r, buffer);
 
 	write(sockfd, buffer, strlen(buffer));
 }
@@ -70,12 +67,11 @@ exe_loopup(int sockfd, char *path)
 		r = 1;
 	}
 
-	LOG1(DEBUG_NFS_SERVER, "Lookup %s: %d\n", path, r);
-
-	write(sockfd, buffer, strlen(buffer));
-
-	if (filefd > 0)
+	LOG(DEBUG_NFS_SERVER, "\nLookup %s: %d\n", path, r); 
+	write(sockfd, buffer, strlen(buffer)); 
+	if (filefd > 0){
 		close(filefd);
+	}
 }
 
 void
@@ -85,18 +81,18 @@ exe_open(int sockfd, char *path)
 	char buffer[BUFFSIZE];
 
 	memset(buffer, 0, sizeof(buffer));
-	if ((filefd = open(path, O_RDONLY)) <= 0)
+	if ((filefd = open(path, O_RDONLY)) <= 0){
 		r = 0;
-	else 
+	} else {
 		r = 1;
+	}
 
 	snprintf(buffer, BUFFSIZE, "%d", r);
-	LOG1(DEBUG_NFS_SERVER, "Open %s: %d\n", path, r);
-
+	LOG(DEBUG_NFS_SERVER, "\nOpen %s: %d\n", path, r);
 	write(sockfd, buffer, strlen(buffer));
-
-	if (filefd > 0)
+	if (filefd > 0){
 		close(filefd);
+	}
 }
 
 // READ
@@ -120,7 +116,7 @@ exe_read(int sockfd, char *req)
 	req += cnt + 1;
 	path = req;
 
-	LOG1(DEBUG_NFS_SERVER, "Read %s : off %d, len %d\n", path, off, len);
+	LOG(DEBUG_NFS_SERVER, "\nRead %s : off %d, len %d\n", path, off, len);
 	assert(len < BUFFSIZE);
 
 	memset(buffer, 0, sizeof(buffer));
@@ -130,7 +126,6 @@ exe_read(int sockfd, char *req)
 	} else {
 		r = 1;
 	}
-
 	// Seek
 	if (seek(filefd, off) < 0){
 		r = 0;
@@ -141,7 +136,6 @@ exe_read(int sockfd, char *req)
 	if (r){
 		r = read(filefd, temp, len);
 		cnt = snprintf(buffer, BUFFSIZE, "%d", r);
-		LOG1(DEBUG_NFS_SERVER, "**** %d\n", cnt);
 		buffer[cnt] = ' ';
 		for (i = 0; i < r; i++){
 			buffer[cnt + 1 + i] = temp[i];
@@ -150,8 +144,7 @@ exe_read(int sockfd, char *req)
 		buffer[0] = '-';
 		buffer[1] = '1';
 	}
-
-	LOG1(DEBUG_NFS_SERVER, "Read get %s\n", buffer);
+	LOG(DEBUG_NFS_SERVER, "\nRead get %s\n", buffer);
 
 	write(sockfd, buffer, sizeof(buffer));
 	free(temp);
@@ -167,7 +160,7 @@ exe_write(int sockfd, char *req)
 	int filefd, r;
 	int flag;
 	char *path;
-	char buffer[512];
+	char buffer[BUFFSIZE];
 
 	// version
 	ver = atoi(req, &cnt);
@@ -177,7 +170,6 @@ exe_write(int sockfd, char *req)
 	// path
 	memset(buffer, 0, sizeof(buffer));
 	for (cnt = 0; ; cnt++){
-		// LOG1(DEBUG_NFS_SERVER, "c %c\n", path[cnt]);
 		if (isalpha(path[cnt]) || isdigit(path[cnt]) || path[cnt] == '/' || path[cnt] == '_'){
 			buffer[cnt] = path[cnt];
 		} else {
@@ -195,7 +187,7 @@ exe_write(int sockfd, char *req)
 	req += cnt + 1;
 	path = req;
 
-	LOG1(DEBUG_NFS_SERVER, "In exe_write %s: ver %d, off %d, len %d\n", buffer, ver, off, len);
+	LOG(DEBUG_NFS_SERVER, "\nIn exe_write %s: ver %d, off %d, len %d\n", buffer, ver, off, len);
 
 	// Open
 	if ((filefd = open(buffer, O_RDWR)) <= 0){
@@ -230,13 +222,10 @@ exe_remove(int sockfd, char *req)
 	int r, ver, len;
 	char buffer[BUFFSIZE];
 
-	LOG1(DEBUG_NFS_SERVER, "In exe_remove\n");
-
+	LOG(DEBUG_NFS_SERVER, "\n***INFO***: in exe_remove\n");
 	ver = atoi(req, &len);
-	if (debug)
-		cprintf("len %d\n", len);
 	req += len + 1;
-	LOG1(DEBUG_NFS_SERVER, "File to remove: %s\n", req);
+	LOG(DEBUG_NFS_SERVER, "\n***INFO***: file to remove: %s\n", req);
 
 	memset(buffer, 0, sizeof(buffer));
 	if ((r = remove(req)) == 0){
@@ -255,7 +244,6 @@ exe_stat(int sockfd, char *req)
 	struct Stat *pstat = malloc(sizeof(struct Stat));
 
 	ver = atoi(req, &len);
-	LOG1(DEBUG_NFS_SERVER, "len %d\n", len);
 	req += len + 1;
 
 	memset(buffer, 0, sizeof(buffer));
@@ -270,11 +258,8 @@ exe_stat(int sockfd, char *req)
 		buffer[1] = ' ';
 		snprintf(buffer + 2, BUFFSIZE, "%d", pstat->st_size);
 	}
-
-	LOG1(DEBUG_NFS_SERVER, "Stat buffer %d\n", strlen(buffer));
-
+	LOG(DEBUG_NFS_SERVER, "\n***INFO***: Stat buffer %d\n", strlen(buffer));
 	write(sockfd, buffer, sizeof(buffer));
-
 	free(pstat);
 }
 
@@ -286,12 +271,12 @@ handle_client(int sockfd)
 
 	memset(buffer, 0, sizeof(buffer));
 	if ((r = read(sockfd, buffer, BUFFSIZE)) < 1){
-		LOG1(DEBUG_NFS_SERVER, "socket read error\n");
+		LOG(DEBUG_NFS_SERVER, "\n***ERROR***: socket read error\n");
 		close(sockfd);
 		return ;
 	}
 
-	LOG1(DEBUG_NFS_SERVER, "*** Get %d bytes data from client: %s\n", r, buffer);
+	LOG(DEBUG_NFS_SERVER, "\n***INFO***: NFS Server Get %d bytes data from client: %s\n", r, buffer);
 
 	switch(buffer[0]){
 		// Mount a file on server to the client
@@ -300,8 +285,10 @@ handle_client(int sockfd)
 			exe_mount(sockfd, buffer + 2);
 			break;
 		case 'L':
+			exe_loopup(sockfd, buffer + 2);
 			break;
 		case 'O':
+			exe_open(sockfd, buffer + 2);
 			break;
 		case 'R':
 			exe_read(sockfd, buffer + 2);
@@ -316,7 +303,7 @@ handle_client(int sockfd)
 			exe_stat(sockfd, buffer + 2);
 			break;
 		default:
-			cprintf("ERROR: unknown nfs command\n");
+			LOG(DEBUG_NFS_SERVER, "\n***ERROR***: unknown nfs command\n");
 			break;
 	}
 	close(sockfd);
@@ -347,7 +334,7 @@ umain(void)
 	if (listen(srv_sock, BACKUP) < 0)
 		die("Failed to listen on server socket");
 
-	LOG1(DEBUG_NFS_SERVER, "Waiting for nfs connections...\n");
+	LOG(DEBUG_NFS_SERVER, "\n\tNFS Server has been setup\n******** Waiting for nfs connections ********\n");
 
 	// Waiting for connections
 	while (1) {
@@ -355,10 +342,10 @@ umain(void)
 		if ((cli_sock = accept(srv_sock, (struct sockaddr *)&cliaddr, &len)) < 0){
 			die("Failed to accept client connection");
 		}
-		LOG1(DEBUG_NFS_SERVER, "*** nfs server gets a new connection ***\n");
+		LOG(DEBUG_NFS_SERVER, "\n***INFO***: nfs server gets a new connection\n");
 		handle_client(cli_sock);
 		close(cli_sock);
-		LOG1(DEBUG_NFS_SERVER, "HANDLE DONE\n");
+		LOG(DEBUG_NFS_SERVER, "\n***INFO***: finish handle nfs client\n");
 	}
 	close(srv_sock);
 	return 0;
