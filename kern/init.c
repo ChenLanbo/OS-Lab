@@ -69,16 +69,6 @@ i386_init(void)
 	ENV_CREATE(user_nfsserver);
 	// ENV_CREATE(net_testoutput);
 	// ENV_CREATE(user_echosrv);
-	// ENV_CREATE(user_httpd);
-	// ENV_CREATE(user_writemotd);
-	// ENV_CREATE(user_testfile);
-	// ENV_CREATE(user_icode);
-	// ENV_CREATE(user_primes);
-	// ENV_CREATE(user_testfile);
-	// ENV_CREATE(user_icode);
-	// ENV_CREATE(user_pingpong);
-	// ENV_CREATE(user_fairness);
-	// ENV_CREATE(user_echosrv);
 	// ENV_CREATE(net_testinput);
 	// ENV_CREATE(net_testoutput);
 	// ENV_CREATE(user_testfdsharing);

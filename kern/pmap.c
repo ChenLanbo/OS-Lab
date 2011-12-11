@@ -136,18 +136,13 @@ boot_alloc(uint32_t n, uint32_t align)
 	//	Step 2: save current value of boot_freemem as allocated chunk
 	//	Step 3: increase boot_freemem to record allocation
 	//	Step 4: return allocated chunk
-
 	// boot_freemem is after .bss segment, which is at virtual address 0xf010****
 	// so we ROUNDUP
 	boot_freemem = ROUNDUP(boot_freemem, align);
 
-	// debug info 
-	// cprintf("***** boot alloc debug -- before alloc boot_freemem: %x ******\n", (uint32_t)boot_freemem); 
 	v = (void *)boot_freemem;
 	boot_freemem = boot_freemem + n;
 
-	// debug info 
-	// cprintf("----- boot alloc debug -- after alloc boot_freemem: %x ------\n", (uint32_t)boot_freemem);
 	return v;
 }
 
@@ -169,9 +164,6 @@ i386_vm_init(void)
 	pde_t* pgdir;
 	uint32_t cr0, cr4;
 	size_t n;
-
-	// Delete this line:
-	//panic("i386_vm_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -202,19 +194,13 @@ i386_vm_init(void)
 	// Your code goes here:
 
 	// npage: free physical memory pages
-	// 96   : memory hole between 640K ~ 1M, but I don't need to add this 
 	pages = (struct Page *)boot_alloc(npage * sizeof(struct Page), PGSIZE);
 
-	// debug info
-	// cprintf("pages addr: %x\n", (uint32_t)pages);
 	// this prints out the virtual address of pages, which is above the KERNBASE
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
-
-	// Debug info
-	// cprintf("ENV %u\n", sizeof(struct Env));
 	envs  = (struct Env *)boot_alloc(NENV * sizeof(struct Page), PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
@@ -575,9 +561,6 @@ page_init(void)
 	// physical page 0
 	pages[0].pp_ref = 1;
 
-	// debug info 
-	// cprintf("page_init debug: %d\n", npage);
-
 	// [PGSIZE, basemem) free pages
 	for (i = 1; i < basemem / PGSIZE; i++){
 		pages[i].pp_ref = 0;
@@ -602,17 +585,6 @@ page_init(void)
 			LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
 		}
 	}
-
-	// oringinal code
-	// for (i = 0; i < npage; i++) {
-	//     pages[i].pp_ref = 0;
-	//     LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
-	// }
-	/*struct Page *pp0;
-	LIST_FOREACH(pp0, &page_free_list, pp_link){
-		cprintf("%d\n", page2ppn(pp0));
-	}
-	panic("ASDF");*/
 }
 
 //
@@ -648,26 +620,8 @@ page_alloc(struct Page **pp_store)
 		return -E_NO_MEM;
 	} else {
 		*pp_store = LIST_FIRST(&page_free_list);
-		/*cprintf("+++++++++++++++++++ page_alloc pmap %d: ", page2ppn(*pp_store));
-		struct Page *pp0;
-		int cnt = 0;
-		LIST_FOREACH(pp0, &page_free_list, pp_link){
-			if (cnt == 2) break;
-			cprintf("%d ", page2ppn(pp0));
-			cnt++;
-		}
-		cprintf(" -- ");*/
-
 		LIST_REMOVE(LIST_FIRST(&page_free_list), pp_link);
 		page_initpp(*pp_store);
-
-		/*cnt = 0;
-		LIST_FOREACH(pp0, &page_free_list, pp_link){
-			if (cnt == 2) break;
-			cprintf("%d ", page2ppn(pp0));
-			cnt++;
-		}
-		cprintf("\n");*/
 		return 0;
 	}
 }
@@ -798,24 +752,15 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 
 	if ((*entry & PTE_P)) {
 		if (PTE_ADDR(*entry) == page2pa(pp)) {
-			// debug info 
-			// !!!!!! change the page directory entry permission
-			// pgdir[PDX(va)] |= perm;
-			// *entry = (page2pa(pp) | perm | PTE_P);
 			pp->pp_ref--;
-
-	//		return 0;
 		} else {
 			page_remove(pgdir, va);
 			tlb_invalidate(pgdir, va);
 		}
 	}
-
-	// pgdir[PDX(va)] |= perm;
 	*entry = (page2pa(pp) | perm | PTE_P);
 	pp->pp_ref = pp->pp_ref + 1;
-
-	// tlb_invalidate(pgdir, va);
+	tlb_invalidate(pgdir, va);
 	return 0;
 }
 
@@ -837,7 +782,6 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 
 	// If PTE_PS bit is set
 	if (perm & PTE_PS){
-		// cprintf("PTE_PS ON\n");
 		for (i = 0; i < size; i += PTSIZE){
 			entry = &pgdir[PDX(la + i)];
 			*entry = (physaddr_t)(pa + i) | perm | PTE_P;
@@ -905,7 +849,6 @@ page_remove(pde_t *pgdir, void *va)
 	struct Page *pp;
 	
 	// debug info 
-	// cprintf("Page remove\n");
 	pp = page_lookup(pgdir, va, &entry);
 	if (pp == NULL) {
 		return ;
