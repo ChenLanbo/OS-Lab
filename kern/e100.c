@@ -9,6 +9,8 @@
 #include <kern/e100.h>
 #include <kern/pmap.h>
 
+#define DEBUG_E100 0
+
 struct pci_func nic_pcif;
 
 // control block list
@@ -39,7 +41,7 @@ cbl_init()
 
 	outl(nic_pcif.reg_base[1] + 0x4, PADDR(cbl));
 	set_scb_command(SCB_CU_START);
-	cprintf("CBL_INIT DONE\n");
+	// LOG(DEBUG_E100, "CBL_INIT DONE\n");
 	cbl_head = 0;
 	cbl_tail = 1;
 }
@@ -60,7 +62,7 @@ rfa_init()
 	rfa[RING - 1].command = RECEIVE_FLAG_EL;
 	outl(nic_pcif.reg_base[1] + 0x4, PADDR(rfa));
 	set_scb_command(SCB_RU_START);
-	cprintf("RFA_INIT DONE\n");
+	// LOG(DEBUG_E100, "RFA_INIT DONE\n");
 	rfa_tail = 0;
 }
 
@@ -77,7 +79,7 @@ nic_init(struct pci_func *pcif)
 	}
 	cbl_init();
 	rfa_init();
-	cprintf("NIC_INIT DONE\n");
+	// LOG(DEBUG_E100, "NIC_INIT DONE\n");
 	return 0;
 }
 
@@ -121,6 +123,7 @@ nic_recv_packet(void *buf, size_t size)
 	if (ret > (rfa[i].count & RU_COUNT_MASK)){
 		ret = (rfa[i].count & RU_COUNT_MASK);
 	}
+	// LOG(DEBUG_E100, "INFO: NIC RECEIVES PACKET\n");
 	memmove(buf, rfa[i].data, ret);
 	// set to next rfd
 	rfa[i].command = RECEIVE_FLAG_EL;

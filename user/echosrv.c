@@ -20,6 +20,7 @@ handle_client(int sock)
 	char buffer[BUFFSIZE];
 	int received = -1;
 	// Receive message
+	memset(buffer, 0, sizeof(buffer));
 	if ((received = read(sock, buffer, BUFFSIZE)) < 0)
 		die("Failed to receive initial bytes from client");
 

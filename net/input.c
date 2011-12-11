@@ -3,6 +3,9 @@
 
 extern union Nsipc nsipcbuf;
 
+#define DEBUG_INPUT 0
+#define LOG(...) (DEBUG_INPUT ? cprintf(__VA_ARGS__) : 0)
+
 void
 input(envid_t ns_envid)
 {
@@ -15,7 +18,7 @@ input(envid_t ns_envid)
 	// Hint: When you IPC a page to the network server, it will be
 	// reading from it for a while, so don't immediately receive
 	// another packet in to the same physical page.
-	cprintf("ns_input %d\n", sizeof(union Nsipc));
+	LOG("ns_input %d\n", sizeof(union Nsipc));
 	while (1){
 		if ((r = sys_page_alloc(0, packet, PTE_U | PTE_P | PTE_W)) < 0){
 			panic("sys_page_alloc error");
@@ -23,7 +26,7 @@ input(envid_t ns_envid)
 		r = sys_net_recv(packet->jp_data, 1518);
 		packet->jp_len = r;
 		// Debug info
-		// cprintf("ns_input gets %d bytes\n", r);
+		LOG("ns_input gets %d bytes\n", r);
 		if (packet->jp_len == 0){
 			sys_yield();
 		} else {
