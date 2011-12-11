@@ -1,8 +1,9 @@
 #include <inc/fs.h>
 #include <inc/string.h>
 #include <inc/lib.h>
+#include <inc/assert.h>
 
-#define debug 0
+#define DEBUG_FILE 0
 
 extern union Fsipc fsipcbuf;	// page-aligned, declared in entry.S
 
@@ -15,9 +16,7 @@ extern union Fsipc fsipcbuf;	// page-aligned, declared in entry.S
 static int
 fsipc(unsigned type, void *dstva)
 {
-	if (debug)
-		cprintf("[%08x] fsipc %d %08x\n", env->env_id, type, *(uint32_t *)&fsipcbuf);
-
+	LOG(DEBUG_FILE, "[%08x] fsipc %d %08x\n", env->env_id, type, *(uint32_t *)&fsipcbuf);
 	ipc_send(envs[1].env_id, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
 	return ipc_recv(NULL, dstva, NULL);
 }
@@ -80,10 +79,7 @@ open(const char *path, int mode)
 		return r;
 	}
 	pfd->fd_dev_id = 'f';
-	// Debug info
-	// cprintf("Page ref %d\n", pageref(pfd));
 	return fd2num(pfd);
-	// panic("open not implemented");
 }
 
 // Flush the file descriptor.  After this the fileid is invalid.
@@ -113,22 +109,17 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 	// filling fsipcbuf.read with the request arguments.  The
 	// bytes read will be written back to fsipcbuf by the file
 	// system server.
-	// LAB 5: Your code here
-
 	int r;
 	struct Fd *fd_store;
 	// if ((r = fd_lookup(fd->fd_file.id, &fd_store)) < 0){ return r; }
 
 	fsipcbuf.read.req_fileid = fd->fd_file.id;
 	fsipcbuf.read.req_n = n;
-	// cprintf("devfile_read: id %d bytes %d\n", fsipcbuf.read.req_fileid, fsipcbuf.read.req_n);
 	if ((r = fsipc(FSREQ_READ, NULL)) < 0){
 		return r;
 	}
-
 	memmove(buf, fsipcbuf.readRet.ret_buf, r);
 	return r;
-	// panic("devfile_read not implemented");
 }
 
 // Write at most 'n' bytes from 'buf' to 'fd' at the current seek position.
@@ -152,9 +143,7 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0){
 		return r;
 	}
-
 	return r;
-	// panic("devfile_write not implemented");
 }
 
 static int

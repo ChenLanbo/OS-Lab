@@ -1,7 +1,8 @@
 #include <inc/string.h>
-
+#include <inc/assert.h>
 #include "fs.h"
 
+#define DEBUG_FS 0
 // --------------------------------------------------------------
 // Super block
 // --------------------------------------------------------------
@@ -59,21 +60,7 @@ alloc_block(void)
 	// The bitmap consists of one or more blocks.  A single bitmap block
 	// contains the in-use bits for BLKBITSIZE blocks.  There are
 	// super->s_nblocks blocks in the disk altogether.
-
-	// LAB 5: Your code here.
 	uint32_t i, j, blockno;
-	/*uint32_t *cb, *eb;
-	eb = bitmap + super->s_nblocks / 32;
-	for (cb = bitmap; cb < eb; cb++){
-		if (*cb == 0) continue;
-		for (i = 0; i < 32; i++){
-			if (*cb & (1 << i)){
-				*cb &= ~(1 << i);
-				return (cb - bitmap) * 32 + i;
-			}
-		}
-	}
-	return -E_NO_DISK;*/
 	for (i = 0; i < BLKBITSIZE / 32; i++){
 		if ((bitmap[i] & 0xffffffff) != 0){
 			break;
@@ -131,7 +118,7 @@ fs_init(void)
 		ide_set_disk(0);
 	
 	bc_init();
-	cprintf("bc_init done\n");
+	LOG(DEBUG_FS, "bc_init done\n");
 
 	// Set "super" to point to the super block.
 	super = diskaddr(1);
@@ -183,15 +170,12 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 		f->f_indirect = r;
 		// Clear this indirect block
 		memset(diskaddr(r), 0, BLKSIZE);
-		// flush_block(diskaddr(r));
+		flush_block(diskaddr(r));
 	}
-
 	// Remember fileno - NDIRECT
 	addr = diskaddr(f->f_indirect);
 	*ppdiskbno = ((uint32_t *)addr + filebno - NDIRECT);
-
 	return 0;
-	// panic("file_block_walk not implemented");
 }
 
 // Set *blk to point at the filebno'th block in file 'f'.
@@ -220,9 +204,9 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 		}
 		*pblkno = r;
 		// Clear this block
-		// memset(diskaddr(r), 0, BLKSIZE);
+		 memset(diskaddr(r), 0, BLKSIZE);
 		// flush this empty block into disk
-		// flush_block(diskaddr(r));
+		flush_block(diskaddr(r));
 	}
 	*blk = diskaddr(*pblkno);
 	return 0;
