@@ -1,6 +1,8 @@
 #include <inc/lib.h>
 #include <inc/elf.h>
+#include <inc/assert.h>
 
+#define DEBUG_SPAWN 0
 #define UTEMP2USTACK(addr)	((void*) (addr) + (USTACKTOP - PGSIZE) - UTEMP)
 #define UTEMP2			(UTEMP + PGSIZE)
 #define UTEMP3			(UTEMP2 + PGSIZE)
@@ -88,7 +90,6 @@ spawn(const char *prog, const char **argv)
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
-	// cprintf("------- SPAWN open done fd %d!!! --- %s\n", fd, prog);
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
 	if ((r = read(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)
@@ -96,13 +97,11 @@ spawn(const char *prog, const char **argv)
 		close(fd);
 		return -E_NOT_EXEC;
 	}
-	// cprintf("ELF_MAGIC GOOD\n");
 
 	// Create new child environment
 	if ((r = sys_exofork()) < 0)
 		return r;
 	child = r;
-	// cprintf("SYS_EXOFORK GOOD %x %s\n", child, prog);
 
 	// Set up trap frame, including initial stack.
 	child_tf = envs[ENVX(child)].env_tf;
@@ -110,7 +109,6 @@ spawn(const char *prog, const char **argv)
 
 	if ((r = init_stack(child, argv, &child_tf.tf_esp)) < 0)
 		return r;
-	// cprintf("INIT_STACK GOOD\n");
 
 	// Set up program segments as defined in ELF header.
 	ph = (struct Proghdr*) (elf_buf + elf->e_phoff);
@@ -243,8 +241,6 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 	int i, r;
 	void *blk;
 
-	//cprintf("map_segment %x+%x\n", va, memsz);
-
 	if ((i = PGOFF(va))) {
 		va -= i;
 		memsz += i;
@@ -264,7 +260,6 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 				return r;
 			if ((r = read(fd, UTEMP, MIN(PGSIZE, filesz-i))) < 0)
 				return r;
-			// cprintf("INFO: map_segment %d --- %x [va %08x]\n", i, child, (void *)(va + i));
 			if ((r = sys_page_map(0, UTEMP, child, (void*) (va + i), perm)) < 0)
 				panic("spawn: sys_page_map data: %e", r);
 			sys_page_unmap(0, UTEMP);
@@ -280,36 +275,21 @@ copy_shared_pages(envid_t child)
 	// LAB 7: Your code here.
 	int i, j, pn, r;
 	void *addr;
-	/*for (i = 0; i < NPDENTRIES; i++){
+	for (i = 0; i < NPDENTRIES; i++){
 		if (vpd[i] == 0) continue;
 		if (i * PTSIZE >= UTOP) continue;
 		for (j = 0; j < NPTENTRIES; j++){
 			pn = i * NPTENTRIES + j;
 			if (!(vpt[pn] & PTE_P)) continue;
 			if (pn * PGSIZE >= UTOP) continue;
-
 			if (vpt[pn] & PTE_SHARE){
-				// cprintf("PTE_SHARE va %08x UTOP %08x\n", pn * PGSIZE, UTOP);
+				LOG(DEBUG_SPAWN, "PTE_SHARE va %08x UTOP %08x\n", pn * PGSIZE, UTOP);
 				if ((r = sys_page_map(0, (void *)(pn * PGSIZE), child, (void *)(pn * PGSIZE), vpt[pn] & PTE_USER)) < 0){
 					panic("sys_page_map error in copy_shared_pages %e", r);
 				}
 			}
 		}
-	}*/
-	while (pn < ((UXSTACKTOP - PGSIZE) >> PGSHIFT)){
-		if (pn % NPTENTRIES == 0 && !(vpd[pn >> 10] & PTE_P)){
-			pn += NPTENTRIES;
-			continue;
-		}
-		if ((vpt[pn] & PTE_P) && (vpt[pn] & PTE_SHARE)){
-			addr = (void *)(pn << PGSHIFT);
-			r = sys_page_map(0, addr, child, addr, vpt[pn] & PTE_USER);
-			if (r < 0)
-				return r;
-		}
-		pn++;
 	}
-
 	return 0;
 }
 

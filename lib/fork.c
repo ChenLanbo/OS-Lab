@@ -1,8 +1,9 @@
 // implement fork from user space
-
 #include <inc/string.h>
 #include <inc/lib.h>
+#include <inc/assert.h>
 
+#define DEBUG_FORK 0
 // PTE_COW marks copy-on-write page table entries.
 // It is one of the bits explicitly allocated to user processes (PTE_AVAIL).
 #define PTE_COW		0x800
@@ -27,7 +28,6 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 	// Check permissions
-	// cprintf("<<<<<< pgfault %08x %d pa[%x] %x >>>>>>\n", sys_getenvid(), err, (uint32_t)addr >> PGSHIFT, vpt[VPN(addr)]);
 	if (!(err & FEC_WR)){
 		panic("no write access");
 	}
@@ -57,9 +57,6 @@ pgfault(struct UTrapframe *utf)
 	if ((r = sys_page_map(0, (void *)PFTEMP, 0, pageaddr, PTE_U | PTE_P | PTE_W)) < 0){
 		panic("sys_page_map error %e", r);
 	}
-
-	// cprintf("<<<<<<< pgfault done [%x %x] tmp %x>>>>>>>>\n", pageaddr, vpt[VPN(pageaddr)], vpt[VPN(PFTEMP)]);
-	// panic("pgfault not implemented");
 	if ((r = sys_page_unmap(0, PFTEMP)) < 0){
 		panic("sys_page_unmap error %e", r);
 	}
@@ -84,13 +81,13 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	if (entry & PTE_SHARE){
-		// cprintf("DUPPAGE PTE_SHARE\n");
+		LOG(DEBUG_FORK, "DUPPAGE PTE_SHARE\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), entry & PTE_USER)) < 0){
 			panic("sys_page_map error in duppage %e", r);
 		}
 	}
 	else if ((entry & PTE_W) || (entry & PTE_COW)){
-		// cprintf("copy-on-write dup\n");
+		LOG(DEBUG_FORK, "copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0){
 			panic("sys_page_map error in duppage %e", r);
 		}
@@ -100,7 +97,7 @@ duppage(envid_t envid, unsigned pn)
 			panic("sys_page_map error in duppage %e", r);
 		}
 	} else {
-		// cprintf("Not copy-on-write dup\n");
+		LOG(DEBUG_FORK, "Not copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P)) < 0){
 			panic("sys_page_map error in duppage %e", r);
 		}
