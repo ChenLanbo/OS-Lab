@@ -19,18 +19,13 @@
 // Lab 6
 #include <kern/e100.h>
 #include <inc/ns.h>
+
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
 static void
 sys_cputs(const char *s, size_t len)
 {
-	// Check that the user has permission to read memory [s, s+len).
-	// Destroy the environment if not.
-	
-	// LAB 3: Your code here.
-
-	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
 }
 
@@ -87,8 +82,6 @@ sys_exofork(void)
 	// status is set to ENV_NOT_RUNNABLE, and the register set is copied
 	// from the current environment -- but tweaked so sys_exofork
 	// will appear to return 0.
-
-	// LAB 4: Your code here.
 	int ret;
 	struct Env *newenv;
 
@@ -98,13 +91,11 @@ sys_exofork(void)
 	}
 	// set the status to be ENV_NOT_RUNNABLE
 	newenv->env_status = ENV_NOT_RUNNABLE;
-
 	// register set
 	newenv->env_tf = curenv->env_tf;
 	newenv->env_tf.tf_regs.reg_eax = 0;
 	
 	return newenv->env_id;
-	// panic("sys_exofork not implemented");
 }
 
 // Set envid's env_status to status, which must be ENV_RUNNABLE
@@ -122,9 +113,6 @@ sys_env_set_status(envid_t envid, int status)
 	// You should set envid2env's third argument to 1, which will
 	// check whether the current environment has permission to set
 	// envid's status.
-
-	// LAB 4: Your code here.
-	// panic("sys_env_set_status not implemented");
 	struct Env *env;
 
 	if (envid2env(envid, &env, 1) != 0){
@@ -166,6 +154,7 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	}
 
 	env->env_tf = *tf;
+	// Missing here
 	env->env_tf.tf_ds |= 3;
 	env->env_tf.tf_es |= 3;
 	env->env_tf.tf_ss |= 3;
@@ -187,9 +176,8 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	// panic("sys_env_set_pgfault_upcall not implemented");
 	struct Env *env;
-	// cprintf("sys_env_set_pgfault_upcall\n");
+
 	if (envid2env(envid, &env, 1) != 0){
 		return -E_BAD_ENV;
 	}
@@ -197,7 +185,6 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	// I haven't checked the permission for the caller, is curenv != env
 	// if (env != curenv){ return -E_BAD_ENV; }
 
-	// cprintf("sys_env_set_pgfault_upcall\n");
 	env->env_pgfault_upcall = func;
 	return 0;
 }
@@ -598,9 +585,6 @@ sys_ipc_recv(void *dstva)
 	} else {
 		curenv->env_ipc_dstva = 0;
 	}
-
-	// sched_yield();
-	// panic("sys_ipc_recv not implemented");
 	return 0;
 }
 
@@ -608,9 +592,7 @@ sys_ipc_recv(void *dstva)
 static int
 sys_time_msec(void) 
 {
-	// LAB 6: Your code here.
 	return time_msec();
-	// panic("sys_time_msec not implemented");
 }
 
 // Return number of data sent
@@ -632,11 +614,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 {
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
-	// LAB 3: Your code here.
-	
-	// Debug info
-	// cprintf("Syscallno %x: %x %x %x %x %x\n", syscallno, a1, a2, a3, a4, a5);
-
 	switch(syscallno){
 		case SYS_cputs:
 			user_mem_assert(curenv, (void *)a1, a2, PTE_U);
@@ -670,11 +647,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_set_trapframe:
 			return sys_env_set_trapframe(a1, (struct Trapframe *)a2);
 			break;
-		// set page fault upcall
 		case SYS_env_set_pgfault_upcall:
 			return sys_env_set_pgfault_upcall(a1, (void *)a2);
 			break;
-		// scheduling
 		case SYS_yield:
 			sys_yield();
 		case SYS_ipc_try_send:
@@ -697,7 +672,5 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return -E_INVAL;
 			break;
 	}
-
-	// panic("syscall not implemented");
 }
 
