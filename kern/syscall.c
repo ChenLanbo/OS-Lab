@@ -637,7 +637,7 @@ sys_env_set_curdir(envid_t envid, char *pathname)
 	int r;
 	struct Env *env;
 
-	cprintf("PATH %s\n", pathname);
+	// cprintf("PATH %s\n", pathname);
 	if (envid == 0){
 		memset(curenv->env_curdir, 0, ENV_PATHLEN);
 		strcpy(curenv->env_curdir, pathname);

@@ -3,7 +3,7 @@
 #include <inc/lib.h>
 #include <inc/assert.h>
 
-#define DEBUG_FILE 0
+#define DEBUG_FILE 1
 
 extern union Fsipc fsipcbuf;	// page-aligned, declared in entry.S
 
@@ -16,7 +16,7 @@ extern union Fsipc fsipcbuf;	// page-aligned, declared in entry.S
 static int
 fsipc(unsigned type, void *dstva)
 {
-	LOG(DEBUG_FILE, "[%08x] fsipc %d %08x\n", env->env_id, type, *(uint32_t *)&fsipcbuf);
+	// LOG(DEBUG_FILE, "[%08x] fsipc %d %08x\n", env->env_id, type, *(uint32_t *)&fsipcbuf);
 	ipc_send(envs[1].env_id, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
 	return ipc_recv(NULL, dstva, NULL);
 }
@@ -85,7 +85,7 @@ open(const char *path, int mode)
 			strcpy(real_path + l1 + 1, path);
 		}
 	}
-	cprintf("OPEN: %s\n", real_path);
+	LOG(DEBUG_FILE, "*** OPEN FILE: %s\n", real_path);
 
 	if ((r = fd_alloc(&pfd)) < 0){
 		return -E_MAX_OPEN;

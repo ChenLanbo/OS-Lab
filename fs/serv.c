@@ -146,7 +146,7 @@ try_open:
 	}
 
 	if (req->req_omode & O_MKDIR) {
-		cprintf("DIR **************************\n");
+		LOG(DEBUG_SERV, "DIR **************************\n");
 		f->f_type = FTYPE_DIR;
 	}
 
