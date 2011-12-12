@@ -56,9 +56,14 @@ int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 
-// LAB 6
+// Lab 6
 int sys_net_send(void *buf, size_t size);
 int sys_net_recv(void *buf, size_t size);
+
+// Lab 7
+int sys_env_get_curdir(envid_t pid, char *pathname);
+int sys_env_set_curdir(envid_t pid, char *pathname);
+int sys_getenv_parent_id(envid_t pid);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t sys_exofork(void) __attribute__((always_inline));

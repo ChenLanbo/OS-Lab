@@ -35,6 +35,8 @@ typedef int32_t envid_t;
 #define ENV_RUNNABLE		1
 #define ENV_NOT_RUNNABLE	2
 
+#define ENV_PATHLEN 128
+
 struct Env {
 	struct Trapframe env_tf;	// Saved registers
 	LIST_ENTRY(Env) env_link;	// Free list link pointers
@@ -56,6 +58,9 @@ struct Env {
 	uint32_t env_ipc_value;		// data value sent to us 
 	envid_t env_ipc_from;		// envid of the sender	
 	int env_ipc_perm;		// perm of page mapping received
+
+	// Lab 7 Project
+	char env_curdir[ENV_PATHLEN];
 };
 
 #endif // !JOS_INC_ENV_H

@@ -47,7 +47,8 @@ struct Dev devfile =
 int
 open(const char *path, int mode)
 {
-	int r;
+	int r, l1, l2;
+	char real_path[MAXPATHLEN];
 	struct Fd *pfd;
 	// Find an unused file descriptor page using fd_alloc.
 	// Then send a file-open request to the file server.
@@ -63,19 +64,38 @@ open(const char *path, int mode)
 	// If any step after fd_alloc fails, use fd_close to free the
 	// file descriptor.
 
-	// LAB 5: Your code here.
 	if (strlen(path) >= MAXPATHLEN){
 		return -E_BAD_PATH;
 	}
+
+	memset(real_path, 0, sizeof(real_path));
+	if (path[0] == '/'){
+		strcpy(real_path, path);
+	} else {
+		sys_env_get_curdir(0, real_path);
+		l1 = strlen(real_path);
+		l2 = strlen(path);
+		if (l1 + l2 >= MAXPATHLEN){
+			return -E_BAD_PATH;
+		}
+		if (real_path[l1-1] == '/'){
+			strcpy(real_path + l1, path);
+		} else {
+			real_path[l1] = '/';
+			strcpy(real_path + l1 + 1, path);
+		}
+	}
+	cprintf("OPEN: %s\n", real_path);
+
 	if ((r = fd_alloc(&pfd)) < 0){
 		return -E_MAX_OPEN;
 	}
 	memset(fsipcbuf.open.req_path, 0, MAXPATHLEN);
-	strncpy(fsipcbuf.open.req_path, path, strlen(path));
+	strncpy(fsipcbuf.open.req_path, real_path, strlen(real_path));
 	fsipcbuf.open.req_omode = mode;
 
 	if ((r = fsipc(FSREQ_OPEN, pfd)) < 0){
-		fd_close(pfd, 0);
+		fd_close(pfd, 1);
 		return r;
 	}
 	pfd->fd_dev_id = 'f';

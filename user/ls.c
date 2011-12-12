@@ -11,8 +11,11 @@ ls(const char *path, const char *prefix)
 	int r;
 	struct Stat st;
 
-	if ((r = stat(path, &st)) < 0)
-		panic("stat %s: %e", path, r);
+	if ((r = stat(path, &st)) < 0){
+		// panic("stat %s: %e", path, r);
+		cprintf("%s not found\n", path);
+		return ;
+	}
 	if (st.st_isdir && !flag['d'])
 		lsdir(path, prefix);
 	else
@@ -67,6 +70,7 @@ void
 umain(int argc, char **argv)
 {
 	int i;
+	char path[MAXPATHLEN];
 
 	ARGBEGIN{
 	default:
@@ -78,8 +82,11 @@ umain(int argc, char **argv)
 		break;
 	}ARGEND
 
-	if (argc == 0)
-		ls("/", "");
+	if (argc == 0){
+		// ls("/", "");
+		sys_env_get_curdir(0, path);
+		ls(path, "");
+	}
 	else {
 		for (i=0; i<argc; i++)
 			ls(argv[i], argv[i]);

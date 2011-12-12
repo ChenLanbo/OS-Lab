@@ -94,6 +94,10 @@ sys_exofork(void)
 	// register set
 	newenv->env_tf = curenv->env_tf;
 	newenv->env_tf.tf_regs.reg_eax = 0;
+
+	// Lab 7 Project
+	// memset(newenv->env_curdir, 0, ENV_PATHLEN);
+	// strcpy(newenv->env_curdir, curenv->env_curdir);
 	
 	return newenv->env_id;
 }
@@ -595,6 +599,7 @@ sys_time_msec(void)
 	return time_msec();
 }
 
+// Lab 6 network dirver
 // Return number of data sent
 int
 sys_net_send(void *buf, size_t size)
@@ -606,6 +611,58 @@ int
 sys_net_recv(void *buf, size_t size)
 {
 	return nic_recv_packet(buf, size);
+}
+
+// Lab 7 final project
+int
+sys_env_get_curdir(envid_t envid, char *pathname)
+{
+	int r;
+	struct Env *env;
+	// cprintf("%s\n", curenv->env_curdir);
+	if (envid == 0){
+		strcpy(pathname, curenv->env_curdir);
+	} else {
+		if ((r = envid2env(envid, &env, 0)) < 0){
+			return -E_BAD_ENV;
+		}
+		strcpy(pathname, env->env_curdir);
+	}
+	return 0;
+}
+
+int
+sys_env_set_curdir(envid_t envid, char *pathname)
+{
+	int r;
+	struct Env *env;
+
+	cprintf("PATH %s\n", pathname);
+	if (envid == 0){
+		memset(curenv->env_curdir, 0, ENV_PATHLEN);
+		strcpy(curenv->env_curdir, pathname);
+	} else {
+		if ((r = envid2env(envid, &env, 0)) < 0){
+			return -E_BAD_ENV;
+		}
+		memset(env->env_curdir, 0, ENV_PATHLEN);
+		strcpy(env->env_curdir, pathname);
+	}
+	return 0;
+}
+
+int
+sys_getenv_parent_id(envid_t envid)
+{
+	int r;
+	struct Env *env;
+	if (envid == 0){
+		return curenv->env_parent_id;
+	}
+	if ((r = envid2env(envid, &env, 0)) < 0){
+		return -E_BAD_ENV;
+	}
+	return env->env_parent_id;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -625,6 +682,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_getenvid:
 			return sys_getenvid();
+			break;
+		case SYS_getenv_parent_id:
+			return sys_getenv_parent_id(a1);
 			break;
 		case SYS_env_destroy:
 			return sys_env_destroy(a1);
@@ -650,8 +710,15 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_set_pgfault_upcall:
 			return sys_env_set_pgfault_upcall(a1, (void *)a2);
 			break;
+		case SYS_env_get_curdir:
+			return sys_env_get_curdir((envid_t)a1, (char *)a2);
+			break;
+		case SYS_env_set_curdir:
+			return sys_env_set_curdir((envid_t)a1, (char *)a2);
+			break;
 		case SYS_yield:
 			sys_yield();
+			break;
 		case SYS_ipc_try_send:
 			return sys_ipc_try_send(a1, a2, (void *)a3, a4);
 			break;
@@ -672,5 +739,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return -E_INVAL;
 			break;
 	}
+	return 0;
 }
 

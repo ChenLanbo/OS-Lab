@@ -123,7 +123,7 @@ sys_time_msec(void)
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
 
-// LAB 6
+// Lab 6
 int
 sys_net_send(void *buf, size_t size)
 {
@@ -134,4 +134,23 @@ int
 sys_net_recv(void *buf, size_t size)
 {
 	return (int) syscall(SYS_net_recv, 0, (uint32_t)buf, size, 0, 0, 0);
+}
+
+// Lab 7
+int
+sys_env_get_curdir(envid_t envid, char *pathname)
+{
+	return (int) syscall(SYS_env_get_curdir, 0, envid, (uint32_t)pathname, 0, 0, 0);
+}
+
+int
+sys_env_set_curdir(envid_t envid, char *pathname)
+{
+	return (int) syscall(SYS_env_set_curdir, 0, envid, (uint32_t)pathname, 0, 0, 0);
+}
+
+int
+sys_getenv_parent_id(envid_t pid)
+{
+	return (int) syscall(SYS_getenv_parent_id, 0, pid, 0, 0, 0, 0);
 }

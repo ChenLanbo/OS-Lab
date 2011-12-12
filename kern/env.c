@@ -20,6 +20,7 @@ struct Env *envs = NULL;		// All environments
 struct Env *curenv = NULL;		// The current env
 static struct Env_list env_free_list;	// Free list
 
+#define DEBUG_ENV 1
 #define ENVGENSHIFT	12		// >= LOGNENV
 
 //
@@ -241,6 +242,13 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
 
+	// Lab 7 Project
+	memset(e->env_curdir, 0, ENV_PATHLEN);
+	if (parent_id == 0){
+		e->env_curdir[0] = '/';
+	} else {
+		strcpy(e->env_curdir, curenv->env_curdir);
+	}
 	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }

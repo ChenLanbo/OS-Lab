@@ -34,6 +34,11 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/hello \
 			$(OBJDIR)/user/httpd \
 			$(OBJDIR)/user/nfsserver \
+			$(OBJDIR)/user/pwd \
+			$(OBJDIR)/user/touch \
+			$(OBJDIR)/user/mkdir \
+			$(OBJDIR)/user/cd \
+			$(OBJDIR)/user/rm \
 			$(OBJDIR)/user/testmalloc
 
 FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
