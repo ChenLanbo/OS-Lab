@@ -201,12 +201,12 @@ i386_vm_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
-	envs  = (struct Env *)boot_alloc(NENV * sizeof(struct Page), PGSIZE);
+	envs  = (struct Env *)boot_alloc(NENV * sizeof(struct Env), PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// LAB 4C Challenge
-	myipcs = (struct Myipc *)boot_alloc(NMYIPC * sizeof(struct Myipc), PGSIZE);
-	myipc_init();
+	// myipcs = (struct Myipc *)boot_alloc(NMYIPC * sizeof(struct Myipc), PGSIZE);
+	// myipc_init();
 
 
 	//////////////////////////////////////////////////////////////////////

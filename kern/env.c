@@ -19,7 +19,6 @@
 struct Env *envs = NULL;		// All environments
 struct Env *curenv = NULL;		// The current env
 static struct Env_list env_free_list;	// Free list
-
 #define DEBUG_ENV 1
 #define ENVGENSHIFT	12		// >= LOGNENV
 
@@ -86,9 +85,6 @@ env_init(void)
 		envs[i].env_id = 0;
 		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
 	}
-
-	// Debug info
-	// cprintf("env_init succeeds\n");
 }
 
 //
@@ -518,7 +514,7 @@ env_destroy(struct Env *e)
 {
 	env_free(e);
 
-	myipc_queue_clean();
+	// myipc_queue_clean();
 
 	if (curenv == e) {
 		curenv = NULL;
