@@ -1,6 +1,6 @@
-#include <inc/nfs-server.h>
+#include <inc/nfsserver.h>
 #include <inc/assert.h>
-#define DEBUG_NFS_SERVER 1
+#define DEBUG_NFS_SERVER 0
 
 static void
 die(char *m)
@@ -211,7 +211,8 @@ exe_write(int sockfd, char *req)
 	}
 
 	write(sockfd, buffer, strlen(buffer));
-	close(filefd);
+	if (filefd > 0)
+		close(filefd);
 }
 
 // Remove
@@ -263,6 +264,58 @@ exe_stat(int sockfd, char *req)
 	free(pstat);
 }
 
+void
+exe_trun(int sockfd, char *req)
+{
+	int ver, off, len, cnt;
+	int filefd, r;
+	int flag;
+	char *path;
+	char buffer[BUFFSIZE];
+
+	ver = atoi(req, &cnt);
+	req += cnt + 1;
+
+	path = req;
+	memset(buffer, 0, sizeof(buffer));
+	for (cnt = 0; ; cnt++){
+		if (isalpha(path[cnt]) || isdigit(path[cnt]) || path[cnt] == '/' || path[cnt] == '_'){
+			buffer[cnt] = path[cnt];
+		} else {
+			break;
+		}
+	}
+	req += cnt + 1;
+
+	len = atoi(req, &cnt);
+	req += cnt + 1;
+
+	LOG(DEBUG_NFS_SERVER, "\nTruncate --- VER %d PATH %s SIZE %d\n", ver, buffer, len);
+
+	if ((filefd = open(buffer, O_RDWR)) < 0){
+		r = 0;
+	} else {
+		r = 1;
+	}
+
+	if (ftruncate(filefd, len) < 0){
+		r = 0;
+	} else {
+		r = 1;
+	}
+
+	memset(buffer, 0, sizeof(buffer));
+	if (r){
+		buffer[0] = 'Y';
+	} else {
+		buffer[0] = 'N';
+	}
+
+	write(sockfd, buffer, strlen(buffer));
+	if (filefd > 0)
+		close(filefd);
+}
+
 static void
 handle_client(int sockfd)
 {
@@ -295,6 +348,9 @@ handle_client(int sockfd)
 			break;
 		case 'W':
 			exe_write(sockfd, buffer + 2);
+			break;
+		case 'T':
+			exe_trun(sockfd, buffer + 2);
 			break;
 		case 'D':
 			exe_remove(sockfd, buffer + 2);
