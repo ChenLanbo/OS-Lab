@@ -1,0 +1,230 @@
+			Lab 7 Final Project Documentation
+
+				Network File System
+
+Group members: 
+Lanbo Chen, 108079696, chenlanbo1988@gmail.com
+ Ming Chen, 108319345, mchen@cs.stonybrook.edu
+
+*********************************************************************************************
+* Part 1. Testing Result
+*********************************************************************************************
+Testing Environment:
+
+vm1 server:
+	IP: 130.245.30.77
+	Local port 26005 of VM forwards to JOS port 128 (nfs server)
+
+vm2 client:
+	IP: 130.245.30.86
+
+1.1 setting up NFS server & client:
+
+	On server & client, checkout branch lab7:
+    $ git checkout lab7
+	
+	Boot NFS server & client:
+	$ make clean && make qemu-nox
+
+    Create testing file on server (current version only support mounting file to client):
+    $ echo hello world > /nfs_hello
+
+    Note:
+    Occasionally, there may be a message "file or block not found" from sh.
+    Just ignore it and retry the command. 
+
+1.2 testing result:
+
+	On client, type the following commands:
+
+	$ ls			        # no /nfs_hello
+	$ mount /nfs_hello	    	# /nfs_hello can be any file on server's FS
+	$ ls			        # has /nfs_hello
+	$ cat /nfs_hello	    	# testing NFS read
+	$ umount /nfs_hello	    	# testing umount
+	$ ls			        # /nfs_hello should be gone
+	$ mount /nfs_hello	    	# remount /nfs_hello
+	$ echo hello nfs >> /nfs_hello    # testing NFS appending
+	$ cat /nfs_hello	    	# should have "hello nfs" at the end of file
+
+	on server:
+	$ cat /nfs_hello 	    	# should have extra hello nfs as well
+	
+	on client: 
+    	$ echo bye bye nfs > /nfs_hello     # testing NFS write
+
+    	on server:
+    	$ cat /nfs_hello        	# should only have "bye bye nfs" in the file
+
+    	on client:
+	$ rm /nfs_hello 	    	# testing NFS remove
+	$ ls			        # /nfs_hello is gone
+
+	on server:
+	$ ls 			        # /nfs_hello is also gone
+
+
+*********************************************************************************************
+* Part 2. Server Implementation
+*********************************************************************************************
+inc/nfs-server.h
+user/nfsserver.c
+
+	1. Create a tcp listening socket and bind to JOS port 128
+
+	2. Listening socket starts listening for incoming connections
+
+	3. When there is a nfs request comming in, server will create a new connection
+	   socket for handling client. Then server calls function handle_client() to parse
+	   the nfs request and send reply.
+
+	4. Function handle_client() will call the following functions:
+
+	   exe_mount(int sockfd, char *req)   : mount a file on server to the client
+	   exe_loopup(int sockfd, char *req)  : look up if a file is on server
+	   exe_open(int sockfd, char *req)    : open a file on server
+	   exe_read(int sockfd, char *req)    : read the data of a file on server 
+	   exe_write(int sockfd, char *req)   : write data to a file on server
+	   exe_remove(int sockfd, char *req)  : remove a file
+	   exe_stat(int sockfd, char *req)    : get file meta-information
+	   exe_trun(int sockfd, char *req)    : truncate a file on server
+
+GNUmakefile
+
+	Add the following:
+	PORT128 := $(shell expr $(GDBPORT) + 3)
+
+	Add the following to QEMUOPTS
+	-redir tcp:$(PORT128)::128
+
+*********************************************************************************************
+* Part 3. Client Implementation
+*********************************************************************************************
+fs/nfs.h
+
+    Definitions and settings
+
+fs/nfs.c
+
+    nfs_mount(union Nfscmd *nfscmd);
+    nfs_read(union Nfscmd *nfscmd);
+    nfs_write(union Nfscmd *nfscmd);
+    nfs_stat(union Nfscmd *nfscmd);
+    nfs_remove(union Nfscmd *nfscmd);
+    nfs_trunc(union Nfscmd *Nfscmd);
+    
+user/mount.c
+
+    mount program
+
+user/umount.c
+
+    unmount program
+
+user/rm.c
+    
+    remove program, used for testing NFS remove
+
+fs/serv.c (add support for NFS)
+
+    serve nfs requests
+
+fs/fs.c (add support for NFS)
+
+    integrate file operations on NFS 
+
+user/sh.c (add support for NFS)
+
+    add support for `>>`, used for testing NFS write
+
+fs/Makefrag (add support for NFS)
+
+    add entries for new programs (mount, umount, rm, nfsread)
+
+*********************************************************************************************
+* Part 4. NFS Protocol
+*********************************************************************************************
+# NFS Protocol Structure
+Fields of request are separated by blanks. 
+
+###################################################################
+## Lookup
+Client lookup a file(dir):
+
+    L PATH
+
+Server returns 'Y' on success, otherwise 'N'. 
+
+###################################################################
+## Mount
+Client request to mount a file(dir):
+
+    M PATH
+    
+Server returns:
+
+    VER TYPE SIZE
+
+TYPE = F/D
+VER is 0 if mount failed; otherwise, return a positive version.
+
+###################################################################
+## Open
+Client request to open a file:
+
+    O PATH
+
+Server returns:
+
+    VER
+
+VER is the version of the file; 0 on failure; otherwise a postive version.
+
+###################################################################
+## Read
+Client request to read a file:
+
+    R VER OFFSET LENGTH PATH
+
+Return:
+success: Y_file contents
+   fail: N
+Server return contents of the file.
+
+###################################################################
+## Write
+Client request to write a file:
+
+    W VER PATH OFFSET LENGTH CONTENT
+
+Server returns 'Y' or 'N'.
+
+###################################################################
+## Truncate
+Client requet to truncate a file, set the size of file to NEWSIZE
+
+    V VER PATH NEWSIZE
+
+Server returns 'Y' or 'N'
+
+###################################################################
+## Remove
+Client request to remove a file:
+
+    D VER PATH
+
+Server returns 'Y' or 'N'.
+
+###################################################################
+## Stat 
+Client request to stat a file:
+
+    S VER PATH
+
+Server returns: 
+
+    F SIZE
+
+F is 'F' if it is a file, or 'D' if it is a directory.
+E is for error 
+
