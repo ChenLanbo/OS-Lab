@@ -234,18 +234,15 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_INVAL;
 	}
 
-	if (!(perm & PTE_U) || !(perm & PTE_P) || perm != (perm & PTE_USER)){
-		return -E_INVAL;
-	}
 	// Check perm
-	/*allowed_perm = PTE_U | PTE_P;
+	allowed_perm = PTE_U | PTE_P;
 	if ((perm & allowed_perm) != allowed_perm){
 	}
 	allowed_perm |= PTE_W | PTE_AVAIL;
 	// Check if there are other permissions
 	if ((perm ^ (perm & allowed_perm)) != 0){
 		return -E_INVAL;
-	}*/
+	}
 	if (page_alloc(&pp) < 0){
 		return -E_NO_MEM;
 	}
@@ -449,11 +446,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if ((uint32_t)srcva % PGSIZE != 0){
 			return -E_INVAL;
 		}
-		if (!(perm & PTE_U) || !(perm & PTE_P) || perm != (perm & PTE_USER)){
-			return -E_INVAL;
-		}
 		// check perm
-		/*allowed_perm = PTE_U | PTE_P;
+		allowed_perm = PTE_U | PTE_P;
 		if ((perm & allowed_perm) != allowed_perm){
 			return -E_INVAL;
 		}
@@ -461,7 +455,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		// Check if there are other permissions
 		if ((perm ^ (perm & allowed_perm)) != 0){
 			return -E_INVAL;
-		}*/
+		}
 
 		// Get mapped entry of srcva
 		entry = pgdir_walk(curenv->env_pgdir, srcva, 0);
@@ -473,13 +467,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		// Check read-only
 		if ((perm & PTE_W) && (*entry & PTE_W) == 0){
 			return -E_INVAL;
-		}
-		if ((uint32_t)env->env_ipc_dstva < UTOP){
-			pp = pa2page(PTE_ADDR(*entry));
-			if ((r = page_insert(env->env_pgdir, pp, env->env_ipc_dstva, perm)) < 0){
-				return r;
-			}
-			env->env_ipc_perm = perm;
 		}
 	}
 	// Env is not blocked for ipc, add the message into kernel's message queue
@@ -502,7 +489,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	env->env_ipc_value = value;
 	env->env_status = ENV_RUNNABLE;
 
-	/*if ((uint32_t)srcva < UTOP){
+	if ((uint32_t)srcva < UTOP){
 		//env->env_ipc_dstva = srcva;
 		if ((uint32_t)env->env_ipc_dstva < UTOP){
 			if ((r = sys_page_map(0, srcva, envid, env->env_ipc_dstva, perm)) < 0){
@@ -514,7 +501,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		}
 	} else {
 		env->env_ipc_perm = 0;
-	}*/
+	}
 
 	// Debug info
 	// cprintf("%x sys_ipc_try_send succeeds\n", sys_getenvid());

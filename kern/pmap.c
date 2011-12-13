@@ -674,44 +674,35 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	struct Page *pp;
+	struct Page *pp; 
 	pte_t *entry;
 
 	// get the page directory entry
-	/*pgdir = &pgdir[PDX(va)];
+	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P)) {
-		if (create == 0) {
+		if (create == 0) { 
 			return NULL;
 		} else {
-			if (page_alloc(&pp) != 0) {
+			if (page_alloc(&pp) != 0) { 
 				return NULL;
 			} else {
 				// debug info 
 				// cprintf("Create a page table\n");
 				// memset((void *)page2pa(pp), 0, PGSIZE);
 				memset(page2kva(pp), 0, PGSIZE);
-				pp->pp_ref = 1;
+				pp->pp_ref = 1; 
 
 				// *pgdir = page2pa(pp) | PTE_W | PTE_P;
 				// !!!!! must add PTE_W option
-				*pgdir = page2pa(pp) | PTE_W | PTE_P;
-			}
-		}
-	}
-	// if (*pgdir & PTE_PS) { return (pte_t *)pgdir; }
+				*pgdir = page2pa(pp) | PTE_W | PTE_P | PTE_U;
+			}    
+		}    
+	}    
+	if (*pgdir & PTE_PS) {
+		return (pte_t *)pgdir;
+	}    
 	entry = (pte_t *)KADDR(PTE_ADDR(*pgdir));
-	return &entry[PTX(va)];*/
-	if (pgdir[PDX(va)] == 0){
-		if (create == 0) return NULL;
-		if (page_alloc(&pp) != 0) return NULL;
-		pgdir[PDX(va)] = page2pa(pp) | PTE_U | PTE_W | PTE_P;
-		pp->pp_ref = 1;
-		entry = KADDR(page2pa(pp));
-		memset(entry, 0, PGSIZE);
-	} else {
-		entry = KADDR(PTE_ADDR(pgdir[PDX(va)]));
-	}
-	return entry + PTX(va);
+	return &entry[PTX(va)];
 }
 
 //
@@ -752,14 +743,22 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 
 	if ((*entry & PTE_P)) {
 		if (PTE_ADDR(*entry) == page2pa(pp)) {
-			pp->pp_ref--;
+			// debug info 
+			// !!!!!! change the page directory entry permission
+			pgdir[PDX(va)] |= perm;
+			*entry = (page2pa(pp) | perm | PTE_P);
+
+			tlb_invalidate(pgdir, va);
+			return 0;
 		} else {
 			page_remove(pgdir, va);
-			tlb_invalidate(pgdir, va);
 		}
 	}
+
+	pgdir[PDX(va)] |= perm;
 	*entry = (page2pa(pp) | perm | PTE_P);
 	pp->pp_ref = pp->pp_ref + 1;
+
 	tlb_invalidate(pgdir, va);
 	return 0;
 }

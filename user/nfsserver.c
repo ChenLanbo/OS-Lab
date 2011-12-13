@@ -390,7 +390,7 @@ umain(void)
 	if (listen(srv_sock, BACKUP) < 0)
 		die("Failed to listen on server socket");
 
-	LOG(DEBUG_NFS_SERVER, "\n          NFS Server has been setup\n******** Waiting for nfs connections ********\n");
+	LOG(1, "\n          NFS Server has been setup\n******** Waiting for nfs connections ********\n");
 
 	// Waiting for connections
 	while (1) {
