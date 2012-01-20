@@ -1,5 +1,6 @@
 // hello, world
 #include <inc/lib.h>
+#include <inc/elf.h>
 
 void
 umain(void)

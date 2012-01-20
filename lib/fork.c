@@ -1,8 +1,9 @@
 // implement fork from user space
-
 #include <inc/string.h>
 #include <inc/lib.h>
+#include <inc/assert.h>
 
+#define DEBUG_FORK 0
 // PTE_COW marks copy-on-write page table entries.
 // It is one of the bits explicitly allocated to user processes (PTE_AVAIL).
 #define PTE_COW		0x800
@@ -19,7 +20,6 @@ pgfault(struct UTrapframe *utf)
 	uint32_t err = utf->utf_err;
 	int r;
 
-	// cprintf("pgfault %08x\n", sys_getenvid());
 	// Check that the faulting access was (1) a write, and (2) to a
 	// copy-on-write page.  If not, panic.
 	// Hint:
@@ -51,11 +51,15 @@ pgfault(struct UTrapframe *utf)
 	}
 	pageaddr = ROUNDDOWN(addr, PGSIZE);
 	memmove((void *)PFTEMP, pageaddr, PGSIZE);
+	/*if ((r = sys_page_unmap(0, pageaddr)) < 0){
+		panic("sys_page_unmap error %e", r);
+	}*/
 	if ((r = sys_page_map(0, (void *)PFTEMP, 0, pageaddr, PTE_U | PTE_P | PTE_W)) < 0){
 		panic("sys_page_map error %e", r);
 	}
-
-	// panic("pgfault not implemented");
+	if ((r = sys_page_unmap(0, PFTEMP)) < 0){
+		panic("sys_page_unmap error %e", r);
+	}
 }
 
 //
@@ -76,8 +80,14 @@ duppage(envid_t envid, unsigned pn)
 	pte_t entry = vpt[pn];
 
 	// LAB 4: Your code here.
-	if ((entry & PTE_W) || (entry & PTE_COW)){
-		// cprintf("copy-on-write dup\n");
+	if (entry & PTE_SHARE){
+		LOG(DEBUG_FORK, "DUPPAGE PTE_SHARE\n");
+		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), entry & PTE_USER)) < 0){
+			panic("sys_page_map error in duppage %e", r);
+		}
+	}
+	else if ((entry & PTE_W) || (entry & PTE_COW)){
+		LOG(DEBUG_FORK, "copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0){
 			panic("sys_page_map error in duppage %e", r);
 		}
@@ -87,7 +97,7 @@ duppage(envid_t envid, unsigned pn)
 			panic("sys_page_map error in duppage %e", r);
 		}
 	} else {
-		// cprintf("Not copy-on-write dup\n");
+		LOG(DEBUG_FORK, "Not copy-on-write dup\n");
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | PTE_P)) < 0){
 			panic("sys_page_map error in duppage %e", r);
 		}
@@ -150,7 +160,7 @@ fork(void)
 	}
 
 	// copy-on-write all pages except UXSTACK
-	for (itr = UTEXT; itr < UXSTACKTOP - PGSIZE; itr += PGSIZE){
+	for (itr = 0; itr < UXSTACKTOP - PGSIZE; itr += PGSIZE){
 		if (!(vpd[VPD(itr)] & PTE_P)){
 			continue;
 		}
@@ -160,7 +170,9 @@ fork(void)
 		if (!(vpt[VPN(itr)] & PTE_U)){
 			continue;
 		}
-		duppage(child, VPN(itr));
+		if ((r = duppage(child, VPN(itr))) < 0){
+			panic("duppage: %e", r);
+		}
 	}
 
 	if ((r = sys_page_alloc(child, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P)) < 0){
@@ -202,7 +214,7 @@ sfork(void)
 	}
 
 	// plain copy page mappings except USTACK, UXSTACK
-	for (itr = UTEXT; itr < USTACKTOP - PGSIZE; itr += PGSIZE){
+	for (itr = 0; itr < USTACKTOP - PGSIZE; itr += PGSIZE){
 		if (!(vpd[VPD(itr)] & PTE_P)){
 			continue;
 		}

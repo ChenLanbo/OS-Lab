@@ -5,11 +5,10 @@
 
 #include <inc/x86.h>
 #include <inc/string.h>
-
+#include <inc/assert.h>
 #include "fs.h"
 
-
-#define debug 0
+#define DEBUG_SERV 0
 
 // The file system server maintains three structures
 // for each open file.
@@ -70,7 +69,7 @@ openfile_alloc(struct OpenFile **o)
 	for (i = 0; i < MAXOPEN; i++) {
 		switch (pageref(opentab[i].o_fd)) {
 		case 0:
-			if ((r = sys_page_alloc(0, opentab[i].o_fd, PTE_P|PTE_U|PTE_W)) < 0)
+			if ((r = sys_page_alloc(0, opentab[i].o_fd, PTE_P|PTE_U|PTE_W|PTE_SHARE)) < 0)
 				return r;
 			/* fall through */
 		case 1:
@@ -109,8 +108,7 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 	int r;
 	struct OpenFile *o;
 
-	if (debug)
-		cprintf("serve_open %08x %s 0x%x\n", envid, req->req_path, req->req_omode);
+	LOG(DEBUG_SERV, "serve_open %08x %s 0x%x\n", envid, req->req_path, req->req_omode);
 
 	// Copy in the path, making sure it's null-terminated
 	memmove(path, req->req_path, MAXPATHLEN);
@@ -118,8 +116,7 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 
 	// Find an open file ID
 	if ((r = openfile_alloc(&o)) < 0) {
-		if (debug)
-			cprintf("openfile_alloc failed: %e", r);
+		LOG(DEBUG_SERV, "openfile_alloc failed: %e", r);
 		return r;
 	}
 	fileid = r;
@@ -129,15 +126,13 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 		if ((r = file_create(path, &f)) < 0) {
 			if (!(req->req_omode & O_EXCL) && r == -E_FILE_EXISTS)
 				goto try_open;
-			if (debug)
-				cprintf("file_create failed: %e", r);
+			LOG(DEBUG_SERV, "file_create failed: %e", r);
 			return r;
 		}
 	} else {
 try_open:
 		if ((r = file_open(path, &f)) < 0) {
-			if (debug)
-				cprintf("file_open failed: %e", r);
+			LOG(DEBUG_SERV, "file_open failed: %e", r);
 			return r;
 		}
 	}
@@ -145,10 +140,14 @@ try_open:
 	// Truncate
 	if (req->req_omode & O_TRUNC) {
 		if ((r = file_set_size(f, 0)) < 0) {
-			if (debug)
-				cprintf("file_set_size failed: %e", r);
+			LOG(DEBUG_SERV, "file_set_size failed: %e", r);
 			return r;
 		}
+	}
+
+	if (req->req_omode & O_MKDIR) {
+		LOG(DEBUG_SERV, "DIR **************************\n");
+		f->f_type = FTYPE_DIR;
 	}
 
 	// Save the file pointer
@@ -160,12 +159,11 @@ try_open:
 	o->o_fd->fd_dev_id = devfile.dev_id;
 	o->o_mode = req->req_omode;
 
-	if (debug)
-		cprintf("sending success, page %08x\n", (uintptr_t) o->o_fd);
+	LOG(DEBUG_SERV, "sending success, page %08x\n", (uintptr_t) o->o_fd);
 
 	// Share the FD page with the caller
 	*pg_store = o->o_fd;
-	*perm_store = PTE_P|PTE_U|PTE_W;
+	*perm_store = PTE_P|PTE_U|PTE_W|PTE_SHARE;
 	return 0;
 }
 
@@ -177,8 +175,7 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *req)
 	struct OpenFile *o;
 	int r;
 
-	if (debug)
-		cprintf("serve_set_size %08x %08x %08x\n", envid, req->req_fileid, req->req_size);
+	LOG(DEBUG_SERV, "serve_set_size %08x %08x %08x\n", envid, req->req_fileid, req->req_size);
 
 	// Every file system IPC call has the same general structure.
 	// Here's how it goes.
@@ -208,8 +205,7 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	size_t count = MIN(PGSIZE, req->req_n);
 	struct OpenFile *o = NULL;
 
-	if (debug)
-		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+	LOG(DEBUG_SERV, "serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Look up the file id, read the bytes into 'ret', and update
 	// the seek position.  Be careful if req->req_n > PGSIZE
@@ -223,10 +219,8 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	if ((r = openfile_lookup(envid, fd, &o)) < 0){
 		return r;
 	}
-	cprintf("o_fd ref: %d\n", pageref(o->o_fd));
-	if (pageref(o->o_fd) < 2){
-		return -E_INVAL;
-	}
+	// cprintf("o_fd ref: %d\n", pageref(o->o_fd));
+	// if (pageref(o->o_fd) < 2){ return -E_INVAL; }
 	// cprintf("serve_read: %d %d\n", fd, count);
 
 	if ((r = file_read(o->o_file, ret->ret_buf, count, o->o_fd->fd_offset)) < 0){
@@ -234,7 +228,7 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	}
 
 	o->o_fd->fd_offset += r;
-
+	LOG(DEBUG_SERV, "serve_read done\n");
 	return r;
 }
 
@@ -250,20 +244,15 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 	size_t count = MIN(PGSIZE, req->req_n);
 	struct OpenFile *o = NULL;
 
-	if (debug)
-		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
-
+	LOG(DEBUG_SERV, "serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 	if ((r = openfile_lookup(envid, fd, &o)) < 0){
 		return r;
 	}
-
 	if ((r = file_write(o->o_file, req->req_buf, count, o->o_fd->fd_offset)) < 0){
 		return r;
 	}
 	o->o_fd->fd_offset += r;
 	return r;
-	// LAB 5: Your code here.
-	// panic("serve_write not implemented");
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -276,9 +265,7 @@ serve_stat(envid_t envid, union Fsipc *ipc)
 	struct OpenFile *o;
 	int r;
 
-	if (debug)
-		cprintf("serve_stat %08x %08x\n", envid, req->req_fileid);
-
+	LOG(DEBUG_SERV, "serve_stat %08x %08x\n", envid, req->req_fileid);
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
 
@@ -295,9 +282,7 @@ serve_flush(envid_t envid, struct Fsreq_flush *req)
 	struct OpenFile *o;
 	int r;
 
-	if (debug)
-		cprintf("serve_flush %08x %08x\n", envid, req->req_fileid);
-
+	LOG(DEBUG_SERV, "serve_flush %08x %08x\n", envid, req->req_fileid);
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
 	file_flush(o->o_file);
@@ -311,8 +296,7 @@ serve_remove(envid_t envid, struct Fsreq_remove *req)
 	char path[MAXPATHLEN];
 	int r;
 
-	if (debug)
-		cprintf("serve_remove %08x %s\n", envid, req->req_path);
+	LOG(DEBUG_SERV, "serve_remove %08x %s\n", envid, req->req_path);
 
 	// Delete the named file.
 	// Note: This request doesn't refer to an open file.
@@ -358,14 +342,10 @@ serve(void)
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
-		if (debug)
-			cprintf("fs req %d from %08x [page %08x: %s]\n",
-				req, whom, vpt[VPN(fsreq)], fsreq);
+		LOG(DEBUG_SERV, "fs req %d from %08x [page %08x: %s]\n", req, whom, vpt[VPN(fsreq)], fsreq);
 
-		// All requests must contain an argument page
 		if (!(perm & PTE_P)) {
-			cprintf("Invalid request from %08x: no argument page\n",
-				whom);
+			LOG(DEBUG_SERV, "Invalid request from %08x: no argument page\n", whom);
 			continue; // just leave it hanging...
 		}
 
@@ -388,7 +368,7 @@ umain(void)
 {
 	static_assert(sizeof(struct File) == 256);
 	binaryname = "fs";
-	cprintf("FS is running\n");
+	LOG(DEBUG_SERV, "FS is running\n");
 
 	// Check that we are able to do I/O
 	outw(0x8A00, 0x8A00);

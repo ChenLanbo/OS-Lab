@@ -1,8 +1,8 @@
 // Called from entry.S to get us going.
 // entry.S already took care of defining envs, pages, vpd, and vpt.
-
+#include <inc/assert.h>
 #include <inc/lib.h>
-
+#define DEBUG_LIBMAIN 0
 extern void umain(int argc, char **argv);
 
 volatile struct Env *env;
@@ -22,9 +22,7 @@ libmain(int argc, char **argv)
 	// Debug info
 	// cprintf("pid %u\n", pid);
 	// cprintf("off %u\n", ENVX(pid));
-	// cprintf("env %08x\n", env);
-	// cprintf("env %08x\n", env);
-	cprintf("In libmain, about to start user program\n");
+	LOG(DEBUG_LIBMAIN, "In libmain, about to start user program %x\n", pid);
 
 	// save the name of the program so that panic() can use it
 	if (argc > 0)

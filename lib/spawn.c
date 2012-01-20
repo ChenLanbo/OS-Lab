@@ -1,6 +1,8 @@
 #include <inc/lib.h>
 #include <inc/elf.h>
+#include <inc/assert.h>
 
+#define DEBUG_SPAWN 0
 #define UTEMP2USTACK(addr)	((void*) (addr) + (USTACKTOP - PGSIZE) - UTEMP)
 #define UTEMP2			(UTEMP + PGSIZE)
 #define UTEMP3			(UTEMP2 + PGSIZE)
@@ -9,6 +11,7 @@
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 static int map_segment(envid_t child, uintptr_t va, size_t memsz,
 		       int fd, size_t filesz, off_t fileoffset, int perm);
+static int copy_shared_pages(envid_t child);
 
 // Spawn a child process from a program image loaded from the file system.
 // prog: the pathname of the program to run.
@@ -87,13 +90,11 @@ spawn(const char *prog, const char **argv)
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
-
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
-	if (read(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
+	if ((r = read(fd, elf_buf, sizeof(elf_buf))) != sizeof(elf_buf)
 	    || elf->e_magic != ELF_MAGIC) {
 		close(fd);
-		cprintf("elf magic %08x want %08x\n", elf->e_magic, ELF_MAGIC);
 		return -E_NOT_EXEC;
 	}
 
@@ -124,12 +125,15 @@ spawn(const char *prog, const char **argv)
 	close(fd);
 	fd = -1;
 
+	// Copy shared library state.
+	if ((r = copy_shared_pages(child)) < 0)
+		panic("copy_shared_pages: %e", r);
+
 	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
 		panic("sys_env_set_trapframe: %e", r);
 
 	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
 		panic("sys_env_set_status: %e", r);
-
 	return child;
 
 error:
@@ -186,7 +190,6 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	if ((r = sys_page_alloc(0, (void*) UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 		return r;
 
-
 	//	* Initialize 'argv_store[i]' to point to argument string i,
 	//	  for all 0 <= i < argc.
 	//	  Also, copy the argument strings from 'argv' into the
@@ -223,6 +226,7 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
 		goto error;
 
+
 	return 0;
 
 error:
@@ -237,15 +241,12 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 	int i, r;
 	void *blk;
 
-	//cprintf("map_segment %x+%x\n", va, memsz);
-
 	if ((i = PGOFF(va))) {
 		va -= i;
 		memsz += i;
 		filesz += i;
 		fileoffset -= i;
 	}
-
 	for (i = 0; i < memsz; i += PGSIZE) {
 		if (i >= filesz) {
 			// allocate a blank page
@@ -267,4 +268,28 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 	return 0;
 }
 
+// Copy the mappings for shared pages into the child address space.
+static int
+copy_shared_pages(envid_t child)
+{
+	// LAB 7: Your code here.
+	int i, j, pn, r;
+	void *addr;
+	for (i = 0; i < NPDENTRIES; i++){
+		if (vpd[i] == 0) continue;
+		if (i * PTSIZE >= UTOP) continue;
+		for (j = 0; j < NPTENTRIES; j++){
+			pn = i * NPTENTRIES + j;
+			if (!(vpt[pn] & PTE_P)) continue;
+			if (pn * PGSIZE >= UTOP) continue;
+			if (vpt[pn] & PTE_SHARE){
+				LOG(DEBUG_SPAWN, "PTE_SHARE va %08x UTOP %08x\n", pn * PGSIZE, UTOP);
+				if ((r = sys_page_map(0, (void *)(pn * PGSIZE), child, (void *)(pn * PGSIZE), vpt[pn] & PTE_USER)) < 0){
+					panic("sys_page_map error in copy_shared_pages %e", r);
+				}
+			}
+		}
+	}
+	return 0;
+}
 

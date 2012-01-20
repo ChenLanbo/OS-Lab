@@ -19,7 +19,7 @@
 struct Env *envs = NULL;		// All environments
 struct Env *curenv = NULL;		// The current env
 static struct Env_list env_free_list;	// Free list
-
+#define DEBUG_ENV 1
 #define ENVGENSHIFT	12		// >= LOGNENV
 
 //
@@ -85,9 +85,6 @@ env_init(void)
 		envs[i].env_id = 0;
 		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
 	}
-
-	// Debug info
-	// cprintf("env_init succeeds\n");
 }
 
 //
@@ -241,6 +238,13 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
 
+	// Lab 7 Project
+	memset(e->env_curdir, 0, ENV_PATHLEN);
+	if (parent_id == 0){
+		e->env_curdir[0] = '/';
+	} else {
+		strcpy(e->env_curdir, curenv->env_curdir);
+	}
 	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
@@ -271,9 +275,9 @@ segment_alloc(struct Env *e, void *va, size_t len)
 			panic("No memory available");
 		}
 		memset(page2kva(p), 0, PGSIZE);
-		p->pp_ref = 1;
+		// p->pp_ref = 1;
 
-		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W);
+		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W | PTE_P);
 	}
 
 	// Debug info
@@ -345,6 +349,18 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
 	eph = ph + ((struct Elf *)binary)->e_phnum;
 
+	/*for ( ; ph < eph; ph++){
+		if (ph->p_filesz > ph->p_memsz)
+			panic("invalid binary");
+		if (ph->p_type == ELF_PROG_LOAD)
+			segment_alloc(e, (void *)ph->p_va, ph->p_memsz);
+	}
+
+	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
+	for ( ; ph < eph; ph++){
+		if (ph->p_type == ELF_PROG_LOAD){
+		}
+	}*/
 	// Load ELF
 	for ( ; ph < eph; ph++){
 		// loadable
@@ -498,7 +514,7 @@ env_destroy(struct Env *e)
 {
 	env_free(e);
 
-	myipc_queue_clean();
+	// myipc_queue_clean();
 
 	if (curenv == e) {
 		curenv = NULL;

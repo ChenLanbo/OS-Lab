@@ -1,0 +1,22 @@
+CSE 506 Final Project Proposal
+	NFS Based on JOS
+
+Group members: 
+Lanbo Chen, 108079696, chenlanbo1988@gmail.com
+Ming Chen, 108319345, mchen@cs.stonybrook.edu
+
+What to do: 
+Build a Network File System (NFS) on JOS. We plan to implement this NFS as a
+server in user space just like JOS's VFS, of course, with support from kernel.
+The NFS will support basic NFS operations including 'lookup', 'mount', 'open',
+    'read', 'write', 'remove', 'stat', 'flush', and 'close'. 
+
+What to present:
+Multiple computers running JOS can share storage through the above-mentioned NFS
+interfaces on network communication. When permission is granted, computer-A
+(client) will be able to explore, read, and write files and directories on local
+storage of computer-B (server). 
+
+What to challenge:
+Implement 'read ahead': read more file blocks from server in advance
+Implement 'automounting': client automatically mounts the server's directory

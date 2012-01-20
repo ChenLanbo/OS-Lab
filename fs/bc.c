@@ -1,8 +1,10 @@
 #include "fs.h"
+#include <inc/assert.h>
 
+#define DEBUG_BC 0
 // LAB 5 Exercise 2 Challenge
 static int pgfault_cnt = 0;
-const static int threshold = 16;
+const static int threshold = PTSIZE;
 
 // Return the virtual address of this disk block.
 void*
@@ -34,10 +36,10 @@ bc_reclaim(int blockno)
 	int x, y, num;
 	void *addr1;
 	pgfault_cnt++;
-	cprintf("bc_pgfault at block %d -- cnt %02d\n", blockno, pgfault_cnt);
 	if (pgfault_cnt < threshold){
 		return ;
 	}
+	LOG(DEBUG_BC, "call bc_reclaim to reclaim pages\n");
 	pgfault_cnt = 0;
 	for (x = 0; x < BLKBITSIZE / 32; x++){
 		// All blocks are free
@@ -49,17 +51,14 @@ bc_reclaim(int blockno)
 			if ((bitmap[x] & (1 << y)) == 0){
 				num = x * 32 + y;
 				// Debug info
-				// cprintf("Block num %d is not free\n", num);
 				// skip boot sector, super block, bitmap block
 				if (num > 2){
 					addr1 = diskaddr(num);
 					if (!(vpt[VPN(addr1)] & PTE_P)){
-						// fatal error
-						// panic("invalid");
 						continue;
 					}
 					if (vpt[VPN(addr1)] & PTE_A){
-						cprintf("Evict block %d\n", num);
+						LOG(DEBUG_BC, "Evict block %d\n", num);
 						if (vpt[VPN(addr1)] & PTE_D){
 							flush_block(addr1);
 						}
@@ -138,11 +137,8 @@ flush_block(void *addr)
 	if (!va_is_dirty(addr)){
 		return ;
 	}
-
 	ide_write(secno, addr_align, BLKSECTS);
-
 	sys_page_map(id, addr_align, id, addr_align, PTE_P | PTE_U | PTE_W);
-	// panic("flush_block not implemented");
 }
 
 // Test that the block cache works, by smashing the superblock and

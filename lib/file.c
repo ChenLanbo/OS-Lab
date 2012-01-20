@@ -1,8 +1,9 @@
 #include <inc/fs.h>
 #include <inc/string.h>
 #include <inc/lib.h>
+#include <inc/assert.h>
 
-#define debug 0
+#define DEBUG_FILE 0
 
 extern union Fsipc fsipcbuf;	// page-aligned, declared in entry.S
 
@@ -15,9 +16,7 @@ extern union Fsipc fsipcbuf;	// page-aligned, declared in entry.S
 static int
 fsipc(unsigned type, void *dstva)
 {
-	if (debug)
-		cprintf("[%08x] fsipc %d %08x\n", env->env_id, type, *(uint32_t *)&fsipcbuf);
-
+	// LOG(DEBUG_FILE, "[%08x] fsipc %d %08x\n", env->env_id, type, *(uint32_t *)&fsipcbuf);
 	ipc_send(envs[1].env_id, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
 	return ipc_recv(NULL, dstva, NULL);
 }
@@ -48,7 +47,8 @@ struct Dev devfile =
 int
 open(const char *path, int mode)
 {
-	int r;
+	int r, l1, l2;
+	char real_path[MAXPATHLEN];
 	struct Fd *pfd;
 	// Find an unused file descriptor page using fd_alloc.
 	// Then send a file-open request to the file server.
@@ -64,25 +64,42 @@ open(const char *path, int mode)
 	// If any step after fd_alloc fails, use fd_close to free the
 	// file descriptor.
 
-	// LAB 5: Your code here.
 	if (strlen(path) >= MAXPATHLEN){
 		return -E_BAD_PATH;
 	}
+
+	memset(real_path, 0, sizeof(real_path));
+	if (path[0] == '/'){
+		strcpy(real_path, path);
+	} else {
+		sys_env_get_curdir(0, real_path);
+		l1 = strlen(real_path);
+		l2 = strlen(path);
+		if (l1 + l2 >= MAXPATHLEN){
+			return -E_BAD_PATH;
+		}
+		if (real_path[l1-1] == '/'){
+			strcpy(real_path + l1, path);
+		} else {
+			real_path[l1] = '/';
+			strcpy(real_path + l1 + 1, path);
+		}
+	}
+	LOG(DEBUG_FILE, "*** OPEN FILE: %s\n", real_path);
+
 	if ((r = fd_alloc(&pfd)) < 0){
 		return -E_MAX_OPEN;
 	}
 	memset(fsipcbuf.open.req_path, 0, MAXPATHLEN);
-	strncpy(fsipcbuf.open.req_path, path, strlen(path));
+	strncpy(fsipcbuf.open.req_path, real_path, strlen(real_path));
 	fsipcbuf.open.req_omode = mode;
 
 	if ((r = fsipc(FSREQ_OPEN, pfd)) < 0){
-		fd_close(pfd, 0);
+		fd_close(pfd, 1);
 		return r;
 	}
-	// Debug info
-	// cprintf("Page ref %d\n", pageref(pfd));
+	pfd->fd_dev_id = 'f';
 	return fd2num(pfd);
-	// panic("open not implemented");
 }
 
 // Flush the file descriptor.  After this the fileid is invalid.
@@ -112,22 +129,17 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 	// filling fsipcbuf.read with the request arguments.  The
 	// bytes read will be written back to fsipcbuf by the file
 	// system server.
-	// LAB 5: Your code here
 	int r;
 	struct Fd *fd_store;
-
 	// if ((r = fd_lookup(fd->fd_file.id, &fd_store)) < 0){ return r; }
 
 	fsipcbuf.read.req_fileid = fd->fd_file.id;
 	fsipcbuf.read.req_n = n;
-	// cprintf("devfile_read: id %d bytes %d\n", fsipcbuf.read.req_fileid, fsipcbuf.read.req_n);
 	if ((r = fsipc(FSREQ_READ, NULL)) < 0){
 		return r;
 	}
-
 	memmove(buf, fsipcbuf.readRet.ret_buf, r);
 	return r;
-	// panic("devfile_read not implemented");
 }
 
 // Write at most 'n' bytes from 'buf' to 'fd' at the current seek position.
@@ -151,9 +163,7 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0){
 		return r;
 	}
-
 	return r;
-	// panic("devfile_write not implemented");
 }
 
 static int

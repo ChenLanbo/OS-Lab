@@ -1,6 +1,7 @@
 #include <inc/lib.h>
+#include <inc/assert.h>
 
-#define debug		0
+#define DEBUG_FD 0
 
 // Maximum number of file descriptors a program may hold open concurrently
 #define MAXFD		32
@@ -76,14 +77,12 @@ fd_lookup(int fdnum, struct Fd **fd_store)
 	struct Fd *fd;
 
 	if (fdnum < 0 || fdnum >= MAXFD) {
-		if (debug)
-			cprintf("[%08x] bad fd %d\n", env->env_id, fd);
+		LOG(DEBUG_FD, "[%08x] bad fd %d\n", env->env_id, fd);
 		return -E_INVAL;
 	}
 	fd = INDEX2FD(fdnum);
 	if (!(vpd[PDX(fd)] & PTE_P) || !(vpt[VPN(fd)] & PTE_P)) {
-		if (debug)
-			cprintf("[%08x] closed fd %d\n", env->env_id, fd);
+		LOG(DEBUG_FD, "[%08x] closed fd %d\n", env->env_id, fd);
 		return -E_INVAL;
 	}
 	*fd_store = fd;
@@ -126,6 +125,9 @@ fd_close(struct Fd *fd, bool must_exist)
 static struct Dev *devtab[] =
 {
 	&devfile,
+	&devsock,
+	&devpipe,
+	&devcons,
 	0
 };
 
@@ -133,12 +135,13 @@ int
 dev_lookup(int dev_id, struct Dev **dev)
 {
 	int i;
-	for (i = 0; devtab[i]; i++)
+	for (i = 0; devtab[i]; i++){
 		if (devtab[i]->dev_id == dev_id) {
 			*dev = devtab[i];
 			return 0;
 		}
-	cprintf("[%08x] unknown device type %d\n", env->env_id, dev_id);
+	}
+	LOG(DEBUG_FD, "[%08x] unknown device type %d\n", env->env_id, dev_id);
 	*dev = 0;
 	return -E_INVAL;
 }
@@ -202,19 +205,20 @@ ssize_t
 read(int fdnum, void *buf, size_t n)
 {
 	int r;
-	struct Dev *dev;
+	struct Dev *dev = NULL;
 	struct Fd *fd;
 
 	if ((r = fd_lookup(fdnum, &fd)) < 0
 	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
 		return r;
 	if ((fd->fd_omode & O_ACCMODE) == O_WRONLY) {
-		cprintf("[%08x] read %d -- bad mode\n", env->env_id, fdnum); 
+		LOG(DEBUG_FD, "[%08x] read %d -- bad mode\n", env->env_id, fdnum); 
 		return -E_INVAL;
 	}
 	if (!dev->dev_read)
 		return -E_NOT_SUPP;
-	return (*dev->dev_read)(fd, buf, n);
+	r = (*dev->dev_read)(fd, buf, n);
+	return r;
 }
 
 ssize_t
@@ -243,12 +247,10 @@ write(int fdnum, const void *buf, size_t n)
 	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
 		return r;
 	if ((fd->fd_omode & O_ACCMODE) == O_RDONLY) {
-		cprintf("[%08x] write %d -- bad mode\n", env->env_id, fdnum);
+		LOG(DEBUG_FD, "[%08x] write %d -- bad mode\n", env->env_id, fdnum);
 		return -E_INVAL;
 	}
-	if (debug)
-		cprintf("write %d %p %d via dev %s\n",
-			fdnum, buf, n, dev->dev_name);
+	LOG(DEBUG_FD, "write %d %p %d via dev %s\n", fdnum, buf, n, dev->dev_name);
 	if (!dev->dev_write)
 		return -E_NOT_SUPP;
 	return (*dev->dev_write)(fd, buf, n);
@@ -276,8 +278,7 @@ ftruncate(int fdnum, off_t newsize)
 	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
 		return r;
 	if ((fd->fd_omode & O_ACCMODE) == O_RDONLY) {
-		cprintf("[%08x] ftruncate %d -- bad mode\n",
-			env->env_id, fdnum); 
+		LOG(DEBUG_FD, "[%08x] ftruncate %d -- bad mode\n", env->env_id, fdnum); 
 		return -E_INVAL;
 	}
 	if (!dev->dev_trunc)
