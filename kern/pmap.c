@@ -812,6 +812,7 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 		}
 		// set the physical address and permissions
 		*entry = (pa + i) | perm | PTE_P;
+		pgdir[PDX(la + i)] |= (perm | PTE_P);
 	} 
 	// Fill this function in
 }

@@ -58,10 +58,6 @@ sys_env_destroy(envid_t envid)
 
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
-	if (e == curenv)
-		cprintf("[%08x] exiting gracefully\n", curenv->env_id);
-	else
-		cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
 	env_destroy(e);
 
 	return 0;
@@ -136,6 +132,35 @@ sys_env_set_status(envid_t envid, int status)
 	}
 
 	env->env_status = status;
+	return 0;
+}
+
+// Set envid's trap frame to 'tf'.
+// tf is modified to make sure that user environments always run at code
+// protection level 3 (CPL 3) with interrupts enabled.
+//
+// Returns 0 on success, < 0 on error.  Errors are:
+//	-E_BAD_ENV if environment envid doesn't currently exist,
+//		or the caller doesn't have permission to change envid.
+static int
+sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
+{
+	// LAB 5: Your code here.
+	// Remember to check whether the user has supplied us with a good
+	// address!
+	struct Env *env;
+	pte_t *entry;
+
+	if (envid2env(envid, &env, 1) != 0){
+		return -E_BAD_ENV;
+	}
+
+	entry = pgdir_walk(curenv->env_pgdir, (void *)tf, 0);
+	if (entry == NULL){
+		return -E_INVAL;
+	}
+
+	env->env_tf = *tf;
 	return 0;
 }
 
@@ -223,7 +248,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_NO_MEM;
 	}
 	memset(page2kva(pp), 0, PGSIZE);
-	pp->pp_ref = 1;
+	// pp->pp_ref = 1;
 
 	// insert into the page table of env
 	if (page_insert(env->env_pgdir, pp, va, perm | PTE_P) != 0){
@@ -268,10 +293,10 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	int allowed_perm;
 
 	// Get env
-	if (envid2env(srcenvid, &srcenv, 1) != 0){
+	if (envid2env(srcenvid, &srcenv, 0) != 0){
 		return -E_BAD_ENV;
 	}
-	if (envid2env(dstenvid, &dstenv, 1) != 0){
+	if (envid2env(dstenvid, &dstenv, 0) != 0){
 		return -E_BAD_ENV;
 	}
 	// Debug
@@ -312,7 +337,6 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if (page_insert(dstenv->env_pgdir, pa2page(PTE_ADDR(*srcentry)), dstva, perm) < 0){
 		return -E_NO_MEM;
 	}
-
 	return 0;
 	// panic("sys_page_map not implemented");
 }
@@ -396,7 +420,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	pte_t *entry;
 	
 	// Debug info
-	// cprintf("%x sys_ipc_try_send to %x\n", sys_getenvid(), envid);
+	// cprintf("%x calls sys_ipc_try_send to %x\n", sys_getenvid(), envid);
 	// Check envid
 	if ((r = envid2env(envid, &env, 0)) < 0){
 		return -E_BAD_ENV;
@@ -440,9 +464,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		// add to the message queue
 		if (myipc_queue_push(env->env_id, curenv->env_id, value, srcva, perm) < 0){
 			return -E_IPC_NOT_RECV;
-		} 
+		}
 		// curenv is blocked
 		curenv->env_status = ENV_NOT_RUNNABLE;
+		// return -E_IPC_NOT_RECV;
 		return 0;
 	}
 	// Debug info
@@ -457,8 +482,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if ((uint32_t)srcva < UTOP){
 		//env->env_ipc_dstva = srcva;
 		if ((uint32_t)env->env_ipc_dstva < UTOP){
-			if (sys_page_map(0, srcva, envid, env->env_ipc_dstva, perm) < 0){
-				return -E_NO_MEM;
+			if ((r = sys_page_map(0, srcva, envid, env->env_ipc_dstva, perm)) < 0){
+				return r;
 			}
 			env->env_ipc_perm = perm;
 		} else {
@@ -489,10 +514,11 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	// cprintf("%08x sys_ipc_recv\n", sys_getenvid());
+	// cprintf("%08x calls sys_ipc_recv\n", sys_getenvid());
 
 	// Challenge 
 	int r;
+	pte_t *entry;
 	struct Myipc *message;
 	struct Env *srcenv, *dstenv;
 	
@@ -526,7 +552,7 @@ sys_ipc_recv(void *dstva)
 		// Debug info
 		return 0;
 	}
-	// cprintf("No message\n");
+	// cprintf("*** No message ***\n");
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_ipc_recving = 1;
 
@@ -587,6 +613,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_env_set_status:
 			return sys_env_set_status(a1, a2);
+			break;
+		case SYS_env_set_trapframe:
+			return sys_env_set_trapframe(a1, (struct Trapframe *)a2);
 			break;
 		// set page fault upcall
 		case SYS_env_set_pgfault_upcall:

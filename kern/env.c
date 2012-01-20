@@ -136,12 +136,12 @@ env_setup_vm(struct Env *e)
 	e->env_pgdir = page2kva(p);
 	e->env_cr3 = page2pa(p);
 
-	for (i = 0; i < 1024; i++){
-		(e->env_pgdir)[i] = boot_pgdir[i];
+	for (i = 0; i < 1024; i++){ 
+		e->env_pgdir[i] = boot_pgdir[i]; 
 	}
 
 	// Here is important, 
-	e->env_pgdir[PDX(UENVS)] |= PTE_U;
+	// e->env_pgdir[PDX(UENVS)] |= PTE_U | PTE_P;
 
 	// now setup the kernel portion of the new environment's address space
 	// UPAGES
@@ -164,7 +164,6 @@ env_setup_vm(struct Env *e)
 	// different permissions.
 	e->env_pgdir[PDX(VPT)]  = e->env_cr3 | PTE_P | PTE_W;
 	e->env_pgdir[PDX(UVPT)] = e->env_cr3 | PTE_P | PTE_U;
-
 	// Debug info
 	// cprintf("env_setup_vm succeeds\n");
 
@@ -232,11 +231,17 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// Also clear the IPC receiving flag.
 	e->env_ipc_recving = 0;
 
+	// If this is the file server (e == &envs[1]) give it I/O privileges.
+	// LAB 5: Your code here.
+	if (e == &envs[1]){
+		e->env_tf.tf_eflags |= FL_IOPL_3;
+	}
+
 	// commit the allocation
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
 
-	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
 
@@ -447,7 +452,7 @@ env_free(struct Env *e)
 		lcr3(boot_cr3);
 
 	// Note the environment's demise.
-	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);
