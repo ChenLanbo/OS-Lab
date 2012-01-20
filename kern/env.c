@@ -11,6 +11,7 @@
 #include <kern/pmap.h>
 #include <kern/trap.h>
 #include <kern/monitor.h>
+#include <kern/sched.h>
 
 struct Env *envs = NULL;		// All environments
 struct Env *curenv = NULL;		// The current env
@@ -218,6 +219,15 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_tf.tf_cs = GD_UT | 3;
 	// You will set e->env_tf.tf_eip later.
 
+	// Enable interrupts while in user mode.
+	// LAB 4: Your code here.
+
+	// Clear the page fault handler until user installs one.
+	e->env_pgfault_upcall = 0;
+
+	// Also clear the IPC receiving flag.
+	e->env_ipc_recving = 0;
+
 	// commit the allocation
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
@@ -251,6 +261,8 @@ segment_alloc(struct Env *e, void *va, size_t len)
 		if (page_alloc(&p) == -E_NO_MEM){
 			panic("No memory available");
 		}
+		memset(page2kva(p), 0, PGSIZE);
+		p->pp_ref = 1;
 
 		page_insert(e->env_pgdir, p, (void *)i, PTE_U | PTE_W);
 	}
@@ -469,15 +481,18 @@ env_free(struct Env *e)
 
 //
 // Frees environment e.
+// If e was the current env, then runs a new environment (and does not return
+// to the caller).
 //
 void
 env_destroy(struct Env *e) 
 {
 	env_free(e);
 
-	cprintf("Destroyed the only environment - nothing more to do!\n");
-	while (1)
-		monitor(NULL);
+	if (curenv == e) {
+		curenv = NULL;
+		sched_yield();
+	}
 }
 
 
@@ -528,6 +543,8 @@ env_run(struct Env *e)
 	if (curenv != e){
 		curenv = e;
 	}
+
+	// cprintf("env.c -- Now running %d\n", e->env_id);
 
 	curenv->env_runs = curenv->env_runs + 1;
 	lcr3((uint32_t)curenv->env_cr3);
