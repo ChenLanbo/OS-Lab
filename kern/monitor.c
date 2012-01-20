@@ -10,10 +10,13 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/trap.h>
 
 #include <kern/pmap.h>
 // Lab 2 Challenges
 #include <kern/memutil.h>
+// Lab 3 Challenges: debugger
+#include <kern/debugger.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -34,7 +37,11 @@ static struct Command commands[] = {
 	{ "memdump", "Dump memory contents", mon_memdump },
 	{ "alloc_page", "Allocate a page of 4KB", mon_alloc_page},
 	{ "page_status", "Show physical page status", mon_page_status},
-	{ "free_page", "Free allocated pages", mon_free_page}
+	{ "free_page", "Free allocated pages", mon_free_page},
+	// continue
+	{ "continue", "Continue after the breakpoint", mon_continue},
+	{ "si", "single-step program", mon_si}
+	// { "debug", "debug exception", mon_debug}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -115,6 +122,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+
 /***** Kernel monitor command interpreter *****/
 
 #define WHITESPACE "\t\r\n "
@@ -167,6 +175,8 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
+	if (tf != NULL)
+		print_trapframe(tf);
 
 	while (1) {
 		buf = readline("K> ");
