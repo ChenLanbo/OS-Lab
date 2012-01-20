@@ -13,6 +13,9 @@
 #include <kern/monitor.h>
 #include <kern/sched.h>
 
+// Lab4c challenge
+#include <kern/myipc.h>
+
 struct Env *envs = NULL;		// All environments
 struct Env *curenv = NULL;		// The current env
 static struct Env_list env_free_list;	// Free list
@@ -489,6 +492,8 @@ void
 env_destroy(struct Env *e) 
 {
 	env_free(e);
+
+	myipc_queue_clean();
 
 	if (curenv == e) {
 		curenv = NULL;

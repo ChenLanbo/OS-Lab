@@ -54,7 +54,7 @@ sched_yield(void)
 	}
 
 	if (nxtpid != 0){
-		// cprintf("Next run %d, yield %d\n", envs[nxtpid].env_id, envs[curpid].env_id);
+		// cprintf("Next run %x, yield %x\n", envs[nxtpid].env_id, envs[curpid].env_id);
 		env_run(&envs[nxtpid]);
 		return ;
 	}

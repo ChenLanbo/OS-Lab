@@ -105,10 +105,10 @@ idt_init(void)
 	// LAB 3: Your code here.
 	// Exceptions and traps
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_divide, 0);
-	SETGATE(idt[T_DEBUG], 1, GD_KT, trap_debug, 3);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_debug, 3);
 	SETGATE(idt[T_NMI], 0, GD_KT, trap_nmi, 0);
-	SETGATE(idt[T_BRKPT], 1, GD_KT, trap_brkpt, 3);
-	SETGATE(idt[T_OFLOW], 1, GD_KT, trap_oflow, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, trap_brkpt, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, trap_oflow, 0);
 	SETGATE(idt[T_BOUND], 0, GD_KT, trap_bound, 0);
 	SETGATE(idt[T_ILLOP], 0, GD_KT, trap_illop, 0);
 	SETGATE(idt[T_DEVICE], 0, GD_KT, trap_device, 0);
@@ -124,26 +124,26 @@ idt_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_simderr, 0);
 
 	// External interrupts
-	SETGATE(idt[IRQ_OFFSET + 0x0], 1, GD_KT, trap_iqr_0, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x1], 1, GD_KT, trap_iqr_1, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x2], 1, GD_KT, trap_iqr_2, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x3], 1, GD_KT, trap_iqr_3, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x4], 1, GD_KT, trap_iqr_4, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x5], 1, GD_KT, trap_iqr_5, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x6], 1, GD_KT, trap_iqr_6, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x7], 1, GD_KT, trap_iqr_7, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x8], 1, GD_KT, trap_iqr_8, 0);
-	SETGATE(idt[IRQ_OFFSET + 0x9], 1, GD_KT, trap_iqr_9, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xa], 1, GD_KT, trap_iqr_a, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xb], 1, GD_KT, trap_iqr_b, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xc], 1, GD_KT, trap_iqr_c, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xd], 1, GD_KT, trap_iqr_d, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xe], 1, GD_KT, trap_iqr_e, 0);
-	SETGATE(idt[IRQ_OFFSET + 0xf], 1, GD_KT, trap_iqr_f, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x0], 0, GD_KT, trap_iqr_0, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x1], 0, GD_KT, trap_iqr_1, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x2], 0, GD_KT, trap_iqr_2, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x3], 0, GD_KT, trap_iqr_3, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x4], 0, GD_KT, trap_iqr_4, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x5], 0, GD_KT, trap_iqr_5, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x6], 0, GD_KT, trap_iqr_6, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x7], 0, GD_KT, trap_iqr_7, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x8], 0, GD_KT, trap_iqr_8, 0);
+	SETGATE(idt[IRQ_OFFSET + 0x9], 0, GD_KT, trap_iqr_9, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xa], 0, GD_KT, trap_iqr_a, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xb], 0, GD_KT, trap_iqr_b, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xc], 0, GD_KT, trap_iqr_c, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xd], 0, GD_KT, trap_iqr_d, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xe], 0, GD_KT, trap_iqr_e, 0);
+	SETGATE(idt[IRQ_OFFSET + 0xf], 0, GD_KT, trap_iqr_f, 0);
 
 	// syscall should be trap,
 	// SETCALLGATE(idt[T_SYSCALL], GD_KT, trap_syscall, 0);
-	SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_syscall, 3);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_syscall, 3);
 
 
 	// Setup a TSS so that we get the right stack
@@ -277,6 +277,8 @@ trap(struct Trapframe *tf)
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
+	// Debug info
+	// cprintf("Trapno %d\n", tf->tf_trapno);
 	assert(!(read_eflags() & FL_IF));
 
 	// cprintf("Incoming TRAP frame at %p\n", tf);

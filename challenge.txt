@@ -1,4 +1,53 @@
 *********************************************************************************
+Lab4c Exercise 10 Challenge 1(fairness), 2(non-loop ipc_send).
+
+	Implementation:
+
+	In order to improve the fairness of current ipc, I let the kernel maintain a
+	message queue to store the message from one process to another. Here is basic
+	idea:
+	
+	1. When process A tries to send a message to process B, if B is waiting for
+	   message, then we just follow the original work flow.
+	2. If B is currently runnable, then we add A's message into the back of 
+	   kernel's message queue, mark B as blocked and return.
+	3. If process A calls sys_ipc_recv, it first check if there's any message to
+	   A itself in kernel's message queue. If so, the kernel pops a message at
+	   the front of the queue and passes it to A. Otherwise, mark A as blocked.
+
+	To make the ipc_send as non-looping, I modify the sys_ipc_send syscall to be
+	a blocking call. In other words, when process A is currently runable and B is
+	sending a message, put the message into the queue and mark B as blocked. As 
+	mentioned above, when next time A calls ipc_recv, it gets a message of B from
+	the queue, then A can mark B as runnable, since the message has been 
+	successfully delivered.
+
+	See kern/myipc.h, kern/myipc.c and kern/syscall.c for detail code.
+
+	Testing Result of user/fairness.c:
+
+	In libmain, about to start user program
+	In libmain, about to start user program
+	1002 loop sending to 1001
+	In libmain, about to start user program
+	1003 loop sending to 1001
+	1001 recv from 1002
+	1001 recv from 1002
+	1001 recv from 1003
+	1001 recv from 1002
+	1001 recv from 1002
+	1001 recv from 1003
+	1001 recv from 1002
+	1001 recv from 1002
+	1001 recv from 1003
+	1001 recv from 1002
+	1001 recv from 1002
+	1001 recv from 1003
+	...
+	   
+*********************************************************************************
+
+*********************************************************************************
 Lab4b Exercise 7 Challenge, sfork()
 
 	Implementation:

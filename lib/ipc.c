@@ -62,8 +62,21 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
 	int r;
-	// cprintf("%x ipc_send to %x\n", sys_getenvid(), to_env);
-	while (1){
+	if (pg == NULL){
+		r = sys_ipc_try_send(to_env, val, (void *)UTOP, perm);
+	} else {
+		r = sys_ipc_try_send(to_env, val, pg, perm);
+	}
+	if (r == 0){
+		return ;
+	} else if (r == -E_IPC_NOT_RECV){
+		sys_yield();
+	} else {
+		panic("sys_ipc_try_send error: %e", r);
+	}
+
+	// Old for loop
+	/* while (1){
 		// try send
 		if (pg == NULL){
 			r = sys_ipc_try_send(to_env, val, (void *)UTOP, perm);
@@ -78,6 +91,5 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 		} else {
 			panic("sys_ipc_try_send error: %e", r);
 		}
-	}
-	// panic("ipc_send not implemented");
+	} */
 }

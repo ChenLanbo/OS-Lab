@@ -132,7 +132,8 @@ _alltraps:
 	pushal
 
 	/* clear IF flag to disable IRQs */
-	cli
+	/* cli */
+	
 
 	movl $GD_KD, %eax
 	movw %ax, %ds
